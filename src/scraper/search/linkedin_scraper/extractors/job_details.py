@@ -80,62 +80,41 @@ class JobDetailsExtractor:
             Complete job description text
         """
         try:
-            # Click "See more" button if present
             see_more_clicked = await self.click_see_more_button()
-
             if see_more_clicked:
                 logger.info("Description expanded, waiting for content to load")
                 await async_random_sleep(1.5, 2.5)
 
-            description_text = "No description available"
+            all_selectors = (
+                list(ARTICLE_SELECTORS)
+                + ["#job-details", ".show-more-less-html__markup"]
+                + list(DESCRIPTION_CONTENT_SELECTORS)
+            )
 
-            # First try to get the complete article element
-            for selector in ARTICLE_SELECTORS:
+            best_text = ""
+            for selector in all_selectors:
                 try:
-                    article_element = await self.page.query_selector(selector)
-                    if article_element and await article_element.is_visible():
-                        text_content = await article_element.text_content()
-                        if text_content and text_content.strip():
-                            description_text = text_content.strip()
-                            logger.info(f"Successfully extracted full job description ({len(text_content)} characters)")
-                            break
+                    element = await self.page.query_selector(selector)
+                    if not element:
+                        continue
+                    text = await element.text_content()
+                    if text:
+                        text = text.strip()
+                        if len(text) > len(best_text):
+                            best_text = text
                 except Exception as e:
-                    logger.debug(f"Could not extract article with selector {selector}: {e}")
+                    logger.debug(f"Selector {selector} failed: {e}")
                     continue
 
-            # Try specific job details selector
-            if description_text == "No description available" or len(description_text) < 100:
-                try:
-                    job_details_element = await self.page.query_selector("#job-details")
-                    if job_details_element and await job_details_element.is_visible():
-                        text_content = await job_details_element.text_content()
-                        if text_content and text_content.strip() and len(text_content.strip()) > len(description_text):
-                            description_text = text_content.strip()
-                            logger.info(f"Successfully extracted #job-details text ({len(text_content)} characters)")
-                except Exception as e:
-                    logger.debug(f"Could not extract #job-details element: {e}")
-
-            # If we couldn't get the article, try other selectors for just the content
-            if description_text == "No description available":
-                for selector in DESCRIPTION_CONTENT_SELECTORS:
-                    try:
-                        content_element = await self.page.query_selector(selector)
-                        if content_element and await content_element.is_visible():
-                            text_content = await content_element.text_content()
-                            if text_content and text_content.strip():
-                                description_text = text_content.strip()
-                                logger.info(f"Extracted job description using selector {selector} ({len(text_content)} characters)")
-                                break
-                    except Exception as e:
-                        logger.debug(f"Error extracting content with selector {selector}: {e}")
-                        continue
-
-            # Log the result
-            if see_more_clicked:
-                logger.info(f"Extracted expanded job description ({len(description_text)} characters)")
+            if not best_text or len(best_text) < 50:
+                description_text = "No description available"
             else:
-                logger.info(f"Extracted job description without expansion ({len(description_text)} characters)")
+                description_text = best_text
 
+            label = "expanded" if see_more_clicked else "without expansion"
+            logger.info(
+                f"Extracted job description {label} ({len(description_text)} characters)"
+            )
             return description_text
 
         except Exception as e:

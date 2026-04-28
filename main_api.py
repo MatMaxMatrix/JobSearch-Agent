@@ -16,7 +16,7 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, BackgroundTasks, HTTPException, Depends, status
+from fastapi import FastAPI, WebSocket, BackgroundTasks, HTTPException, Depends, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -1219,7 +1219,108 @@ async def migrate_jobs():
 #         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================================
+# CV MATCH ENDPOINTS
+# ============================================================================
+
+match_dir = os.path.join(output_dir, "match")
+ensure_dir_exists(match_dir)
+
+
+def _match_status_path(match_id: str) -> str:
+    return os.path.join(match_dir, f"{match_id}_status.json")
+
+
+def _write_match_status(match_id: str, payload: Dict[str, Any]) -> None:
+    with open(_match_status_path(match_id), "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, ensure_ascii=False)
+
+
+@app.post("/match", dependencies=[Depends(verify_api_key)])
+async def match_cv_to_jobs(
+    background_tasks: BackgroundTasks,
+    cv: UploadFile = File(...),
+    countries: Optional[str] = None,
+    top_per_country: int = 5,
+    jobs_per_country: int = 25,
+):
+    """
+    Match a PDF CV against recent (past 24h) LinkedIn jobs in the given countries
+    (default: Netherlands, Germany, Italy). Returns a match_id; results are
+    available at GET /match/{match_id}.
+    """
+    if not cv.filename or not cv.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="CV must be a PDF file")
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    match_id = f"match_{timestamp}"
+
+    cv_save_path = os.path.join(match_dir, f"{match_id}_cv.pdf")
+    contents = await cv.read()
+    with open(cv_save_path, "wb") as f:
+        f.write(contents)
+
+    country_list: Optional[List[str]] = None
+    if countries:
+        country_list = [c.strip() for c in countries.split(",") if c.strip()]
+
+    _write_match_status(match_id, {"match_id": match_id, "status": "in_progress"})
+
+    async def _run():
+        try:
+            from src.utils.cv_match_pipeline import run_cv_match
+
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None,
+                lambda: run_cv_match(
+                    cv_pdf_path=cv_save_path,
+                    out_dir=match_dir,
+                    match_id=match_id,
+                    countries=country_list,
+                    top_per_country=top_per_country,
+                    jobs_per_country=jobs_per_country,
+                ),
+            )
+            _write_match_status(
+                match_id,
+                {
+                    "match_id": match_id,
+                    "status": "completed",
+                    "markdown_url": f"/output/match/{match_id}.md",
+                    "pdf_url": f"/output/match/{match_id}.pdf" if result.get("pdf") else None,
+                    "profile": result.get("profile"),
+                    "counts_per_country": result.get("grouped_counts"),
+                },
+            )
+        except Exception as e:
+            _write_match_status(
+                match_id,
+                {"match_id": match_id, "status": "error", "error": str(e)},
+            )
+
+    background_tasks.add_task(_run)
+
+    return {
+        "match_id": match_id,
+        "status": "started",
+        "countries": country_list or ["Netherlands", "Germany", "Italy"],
+        "top_per_country": top_per_country,
+        "jobs_per_country": jobs_per_country,
+    }
+
+
+@app.get("/match/{match_id}")
+async def get_match_status(match_id: str):
+    """Get the status (and result URLs when completed) of a CV-match run."""
+    path = _match_status_path(match_id)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="match_id not found")
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 if __name__ == "__main__":
     # Don't force Windows compatibility here - let the browser manager handle it
     # Run the FastAPI app with uvicorn
-    uvicorn.run("main_api:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main_api:app", host="127.0.0.1", port=8000, reload=True)

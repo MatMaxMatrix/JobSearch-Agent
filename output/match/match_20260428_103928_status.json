@@ -1,0 +1,14 @@
+{
+  "match_id": "match_20260428_103928",
+  "status": "completed",
+  "markdown_url": "/output/match/match_20260428_103928.md",
+  "pdf_url": "/output/match/match_20260428_103928.pdf",
+  "profile": {
+    "search_keywords": "Machine Learning Engineer NLP LLM RAG",
+    "experience_level": "associate",
+    "summary": "Mobin Azimipanah is an AI Engineer with expertise in machine learning, NLP, and LLMs. He holds dual Master's degrees from Polytechnic University of Milan and University Grenoble Alpes, focusing on ML and robotics. Currently at Hermes Corporate, he builds AI infrastructure for Baker Hughes using FastAPI, MLflow, and AWS. At Canon Research Center France, he led RAG system development, cutting IP analysis time from days to minutes. Skilled in PyTorch, TensorFlow, AutoGen, and LangChain, he has created multi-agent platforms and full-stack AI tools. His projects include a pet care chatbot, a crypto trading system, and an FDA compliance analyzer. A published researcher and hackathon participant, he seeks roles involving cutting-edge AI and MLOps."
+  },
+  "counts_per_country": {
+    "Netherlands": 0
+  }
+}

@@ -4,12 +4,15 @@ Browser setup, navigation, retries, and scrolling functionality using Playwright
 
 import asyncio
 import logging
+import os
 import random
 import sys
 from typing import Optional, List
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+
+LINKEDIN_STATE_PATH = os.path.join("data", "linkedin_state.json")
 
 from .config import (
     CHROME_USER_AGENT, 
@@ -123,11 +126,11 @@ class BrowserManager:
         context_options = {
             "viewport": {"width": 1920, "height": 1080}
         }
-        
+
         # Add proxy to context if specified
         if proxy_config:
             context_options["proxy"] = proxy_config
-        
+
         # Anonymization features
         if self.anonymize:
             # Randomize user agent
@@ -135,17 +138,21 @@ class BrowserManager:
                 context_options["user_agent"] = random.choice(USER_AGENTS_POOL)
             else:
                 context_options["user_agent"] = CHROME_USER_AGENT
-                
+
             # Randomize timezone
             if ANONYMIZATION_CONFIG.get("randomize_timezone"):
                 context_options["timezone_id"] = random.choice(TIMEZONE_OPTIONS)
-                
+
             # Randomize language
             if ANONYMIZATION_CONFIG.get("randomize_language"):
                 context_options["locale"] = random.choice(LANGUAGE_OPTIONS).split(',')[0]
         else:
             context_options["user_agent"] = CHROME_USER_AGENT
-        
+
+        if os.path.exists(LINKEDIN_STATE_PATH):
+            context_options["storage_state"] = LINKEDIN_STATE_PATH
+            logger.info(f"Reusing saved LinkedIn session from {LINKEDIN_STATE_PATH}")
+
         self.context = await self.browser_instance.new_context(**context_options)
         
         # Enhanced anonymization scripts
@@ -299,7 +306,10 @@ class BrowserManager:
             max_wait: Maximum wait time in seconds
         """
         logger.info(f"Navigating to: {url}")
-        await self.page.goto(url, timeout=self.timeout)
+        try:
+            await self.page.goto(url, timeout=60000, wait_until="domcontentloaded")
+        except PlaywrightTimeoutError:
+            logger.warning(f"DOM load timeout on {url}, continuing with whatever rendered")
         await async_random_sleep(min_wait, max_wait)
 
     async def handle_rate_limiting(self) -> bool:

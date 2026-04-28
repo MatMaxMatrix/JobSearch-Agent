@@ -1,0 +1,14 @@
+{
+  "match_id": "match_20260428_103208",
+  "status": "completed",
+  "markdown_url": "/output/match/match_20260428_103208.md",
+  "pdf_url": null,
+  "profile": {
+    "search_keywords": "AI Engineer LLM RAG Multi-Agent",
+    "experience_level": "entry_level",
+    "summary": "Mobin Azimipanah is an AI Engineer specializing in RAG, LLMs, and multi-agent systems. He holds dual M.Sc. degrees in Electrical Engineering and Computer Science. He currently works at Hermes Corporate, consulting on AI infrastructure with FastAPI and AWS. Previously, as an intern at Canon Research Center, he built an automated RAG system that cut IP analysis from days to under 3 minutes. His project portfolio includes a full-stack AI assistant platform and a multi-agent LLM for FDA compliance. Skilled in Python, PyTorch, AutoGen, and Docker, Mobin bridges research and production to deliver efficient AI solutions."
+  },
+  "counts_per_country": {
+    "Netherlands": 0
+  }
+}

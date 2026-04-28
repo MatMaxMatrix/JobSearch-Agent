@@ -260,28 +260,40 @@ class LinkedInScraper:
         result = {}
 
         # Get title - prioritize specific job title selectors
+        bad_titles = {
+            "home", "jobs", "linkedin", "experienced professional",
+            "entry level", "mid level", "senior level", "about the job",
+            "messaging", "notifications", "feed",
+        }
         title = None
         title_selectors = [
             ".job-details-jobs-unified-top-card__job-title h1",
             ".jobs-unified-top-card__job-title h1",
+            "h1.top-card-layout__title",
+            "[data-test-job-title]",
+            ".jobs-details-top-card__job-title h1",
             "h1.t-24",
             "main h1",
         ]
         for selector in title_selectors:
             h1 = await page.query_selector(selector)
-            if h1:
-                title = clean_text(await h1.text_content())
-                if (
-                    title
-                    and len(title) > 3
-                    and title not in ["Home", "Jobs", "LinkedIn"]
-                ):
-                    break
+            if not h1:
+                continue
+            candidate = clean_text(await h1.text_content())
+            if (
+                candidate
+                and len(candidate) > 3
+                and candidate.lower() not in bad_titles
+            ):
+                title = candidate
+                break
 
-        if not title or title in ["Home", "Jobs", "LinkedIn"]:
+        if not title:
             page_title = await page.title()
             if "|" in page_title:
-                title = page_title.split("|")[0].strip()
+                first = page_title.split("|")[0].strip()
+                if first.lower() not in bad_titles:
+                    title = first
         result["title"] = title
 
         # Get company - avoid navigation links
@@ -318,26 +330,51 @@ class LinkedInScraper:
                     company = parts[1].strip().replace(" | LinkedIn", "")
         result["company"] = company
 
-        # Get description - use specific job description selectors
+        # Get description: try to expand "See more", then pick the longest text across
+        # several candidate selectors (LinkedIn ships multiple containers; the right one
+        # changes between layouts).
+        try:
+            see_more = page.locator(
+                "button:has-text('See more'), button:has-text('Show more')"
+            ).first
+            if await see_more.count() > 0 and await see_more.is_visible():
+                await see_more.click(timeout=3000, force=True)
+                import asyncio as _a
+
+                await _a.sleep(1.0)
+        except Exception:
+            pass
+
         description = None
         description_selectors = [
+            "#job-details",
+            ".jobs-description__container",
+            "article.jobs-description__container",
             ".jobs-description__content",
             ".jobs-box__html-content",
+            ".show-more-less-html__markup",
+            "[data-test-description]",
             "article.jobs-description",
             ".job-details-jobs-unified-top-card__job-description",
             'div[class*="description"] article',
         ]
 
+        best_text = ""
         for selector in description_selectors:
-            desc_element = await page.query_selector(selector)
-            if desc_element:
+            try:
+                desc_element = await page.query_selector(selector)
+                if not desc_element:
+                    continue
                 desc_text = clean_text(await desc_element.text_content())
-                if desc_text and 100 < len(desc_text) < 50000:
-                    description = desc_text
-                    break
+                if desc_text and len(desc_text) > len(best_text) and len(desc_text) < 50000:
+                    best_text = desc_text
+            except Exception:
+                continue
+
+        if best_text and len(best_text) >= 100:
+            description = best_text
 
         if not description or len(description) < 100:
-            # Fallback: Look for div with job description keywords
             keywords = [
                 "responsibilities",
                 "requirements",
@@ -357,7 +394,6 @@ class LinkedInScraper:
             candidates = []
 
             for div in divs:
-                # Skip nav/header/footer
                 parent_tag = await div.evaluate(
                     'el => el.closest("nav, header, aside, footer") ? true : false'
                 )
@@ -373,6 +409,12 @@ class LinkedInScraper:
                     candidates.append(
                         {"text": clean_text(full_text), "length": len(full_text)}
                     )
+
+            if candidates:
+                candidates.sort(key=lambda c: c["length"], reverse=True)
+                description = candidates[0]["text"]
+
+        result["description"] = description
         #  - use specific selectors first
         location = None
         location_selectors = [

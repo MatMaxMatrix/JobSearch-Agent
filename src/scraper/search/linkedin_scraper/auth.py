@@ -12,6 +12,7 @@ from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
 
 from .utils import async_random_sleep, save_screenshot
 from .extractors.selectors import LOGIN_FORM_SELECTORS, LOGGED_IN_INDICATORS, JOB_LOADING_INDICATORS
+from .browser import LINKEDIN_STATE_PATH
 
 logger = logging.getLogger("linkedin_scraper")
 
@@ -79,8 +80,16 @@ class AuthManager:
 
             # Navigate to LinkedIn login page
             await self.page.goto("https://www.linkedin.com/login")
-            await async_random_sleep(2.0, 3.0)            # Wait for the login form
-            await self.page.wait_for_selector(LOGIN_FORM_SELECTORS["username"], timeout=self.timeout)            # Fill in username and password
+            await async_random_sleep(2.0, 3.0)
+
+            if await self._is_logged_in():
+                logger.info("Already logged in (session cookie still valid) - skipping form")
+                await self._save_storage_state()
+                return True
+
+            # Wait for the login form
+            await self.page.wait_for_selector(LOGIN_FORM_SELECTORS["username"], timeout=self.timeout)
+            # Fill in username and password
             username_field = await self.page.query_selector(LOGIN_FORM_SELECTORS["username"])
             password_field = await self.page.query_selector(LOGIN_FORM_SELECTORS["password"])
 
@@ -102,14 +111,11 @@ class AuthManager:
             # Wait for the login to complete
             await async_random_sleep(3.0, 5.0)
 
-            # Check if login was successful
-            for selector in LOGGED_IN_INDICATORS:
-                try:
-                    await self.page.wait_for_selector(selector, timeout=self.timeout)
-                    logger.info("Successfully logged in to LinkedIn")
-                    return True
-                except PlaywrightTimeoutError:
-                    continue            
+            if await self._is_logged_in():
+                logger.info("Successfully logged in to LinkedIn")
+                await self._save_storage_state()
+                return True
+
             logger.error("Failed to login - could not find post-login elements")
             
             # Check for security verification
@@ -122,6 +128,52 @@ class AuthManager:
 
         except Exception as e:
             logger.error(f"Login failed: {str(e)}")
+            return False
+
+    async def _save_storage_state(self) -> None:
+        try:
+            os.makedirs(os.path.dirname(LINKEDIN_STATE_PATH), exist_ok=True)
+            await self.page.context.storage_state(path=LINKEDIN_STATE_PATH)
+            logger.info(f"Saved LinkedIn session to {LINKEDIN_STATE_PATH}")
+        except Exception as e:
+            logger.warning(f"Could not save LinkedIn session: {e}")
+
+    async def _is_logged_in(self) -> bool:
+        """Detect a logged-in LinkedIn session via URL, title, or DOM markers."""
+        try:
+            url = self.page.url or ""
+            title = (await self.page.title()) or ""
+            logger.info(f"Post-login URL: {url}")
+            logger.info(f"Post-login title: {title}")
+
+            url_signals = ("/feed", "/jobs", "/in/", "/mynetwork", "/messaging", "/checkpoint/lg/login-submit")
+            if any(s in url for s in url_signals) and "/login" not in url:
+                return True
+
+            title_signals = ("Feed |", "Jobs |", "LinkedIn Feed", "My Network", "Messaging")
+            if any(s in title for s in title_signals):
+                return True
+
+            modern_selectors = [
+                "header.global-nav",
+                "nav.global-nav",
+                "div.global-nav",
+                "#global-nav",
+                "[data-test-global-nav]",
+                "a[href='/feed/']",
+                "img.global-nav__me-photo",
+                ".feed-identity-module",
+            ]
+            for selector in modern_selectors:
+                try:
+                    el = await self.page.query_selector(selector)
+                    if el:
+                        return True
+                except Exception:
+                    continue
+            return False
+        except Exception as e:
+            logger.warning(f"Error checking logged-in state: {e}")
             return False
 
     async def check_for_captcha(self) -> bool:
