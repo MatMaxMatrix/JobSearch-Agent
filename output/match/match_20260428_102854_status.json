@@ -1,5 +1,0 @@
-{
-  "match_id": "match_20260428_102854",
-  "status": "error",
-  "error": "DeepSeek returned empty content for model='deepseek-v4-pro'. Full response: {\"id\": \"65135728-fcff-41b2-893b-8fa0dd22db1d\", \"object\": \"chat.completion\", \"created\": 1777364935, \"model\": \"deepseek-v4-pro\", \"choices\": [{\"index\": 0, \"message\": {\"role\": \"assistant\", \"content\": \"\", \"reasoning_content\": \"We are asked to output JSON only, no commentary. The response must have exactly three keys: \\\"search_keywords\\\", \\\"experience_level\\\", \\\"summary\\\".\\n\\nAnalyzing the CV:\\n\\n- The candidate is Mobin Azimipanah, currently an AI Engineer at Hermes Corporate (full-time since June 20"
-}

@@ -10,3 +10,12 @@ wheels/
 .venv
 .env
 key.json
+
+# Generated reports and uploaded CVs (contain PII)
+output/match/
+
+# LinkedIn session cookies (sensitive)
+data/linkedin_state.json
+
+# Browser/scraper runtime artifacts
+geckodriver.log

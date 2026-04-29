@@ -26,6 +26,7 @@ DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-pro")
 DEFAULT_COUNTRIES = ["Netherlands", "Germany", "Italy"]
 DEFAULT_TOP_PER_COUNTRY = 5
 DEFAULT_JOBS_PER_COUNTRY = 25
+DEFAULT_MIN_SCORE = 75
 
 
 def extract_cv_text(pdf_path: str) -> str:
@@ -163,21 +164,48 @@ def write_cover_letter(cv_text: str, job: Dict[str, Any]) -> str:
 def render_markdown_report(
     profile: Dict[str, Any],
     grouped: Dict[str, List[Dict[str, Any]]],
+    min_score: int = DEFAULT_MIN_SCORE,
 ) -> str:
     parts: List[str] = ["# Job Match Report", ""]
     parts.append(f"**Search keywords:** {profile.get('search_keywords', '')}  ")
     parts.append(f"**Experience level:** {profile.get('experience_level', '')}  ")
+    parts.append(f"**Minimum match score:** {min_score}/100  ")
     parts.append(f"**Generated:** {time.strftime('%Y-%m-%d %H:%M:%S')}")
     parts.append("")
     if profile.get("summary"):
         parts.append(f"> {profile['summary']}")
         parts.append("")
 
+    total = sum(len(v) for v in grouped.values())
+
+    parts.append("## Quick Apply")
+    parts.append("")
+    if total == 0:
+        parts.append(f"_No jobs scored at or above {min_score}/100 in the last 24 hours._")
+        parts.append("")
+    else:
+        parts.append(f"All {total} positions below scored ≥ {min_score}/100. Click to apply directly.")
+        parts.append("")
+        parts.append("| Score | Country | Role | Company | Apply |")
+        parts.append("|---|---|---|---|---|")
+        for country, jobs in grouped.items():
+            for j in jobs:
+                title = _job_field(j, "job_title", "title") or "Unknown role"
+                company = _job_field(j, "company_name", "company") or "Unknown company"
+                url = _job_field(j, "source_url", "url", "job_url") or ""
+                score = j.get("_match_score", "?")
+                link = f"[Open]({url})" if url else "—"
+                parts.append(f"| {score} | {country} | {title} | {company} | {link} |")
+        parts.append("")
+
+    parts.append("---")
+    parts.append("")
+
     for country, jobs in grouped.items():
         parts.append(f"## {country}")
         parts.append("")
         if not jobs:
-            parts.append("_No matching jobs in the last 24 hours._")
+            parts.append(f"_No jobs scored at or above {min_score}/100 in the last 24 hours._")
             parts.append("")
             continue
         for i, j in enumerate(jobs, 1):
@@ -223,6 +251,7 @@ def run_cv_match(
     countries: Optional[List[str]] = None,
     top_per_country: int = DEFAULT_TOP_PER_COUNTRY,
     jobs_per_country: int = DEFAULT_JOBS_PER_COUNTRY,
+    min_score: int = DEFAULT_MIN_SCORE,
 ) -> Dict[str, Any]:
     """Run the full pipeline. Returns paths to the generated MD/PDF and the profile."""
     countries = countries or DEFAULT_COUNTRIES
@@ -249,7 +278,7 @@ def run_cv_match(
                     keywords=keywords,
                     location=country,
                     max_pages=max_pages,
-                    experience_levels=[experience_level] if experience_level else None,
+                    experience_levels=None,
                     date_posted="past_24_hours",
                     sort_by="recent",
                 )
@@ -299,8 +328,14 @@ def run_cv_match(
                 scored.append(job)
                 time.sleep(1)
 
-            scored.sort(key=lambda j: j.get("_match_score", 0), reverse=True)
-            top = scored[:top_per_country]
+            qualifying = [j for j in scored if j.get("_match_score", 0) >= min_score]
+            qualifying.sort(key=lambda j: j.get("_match_score", 0), reverse=True)
+            top = qualifying[:top_per_country]
+            dropped = len(scored) - len(qualifying)
+            print(
+                f"[MATCH] {country}: {len(scored)} scored, "
+                f"{dropped} below {min_score}, keeping top {len(top)}"
+            )
             for j in top:
                 try:
                     j["_cover_letter"] = write_cover_letter(cv_text, j)
@@ -317,7 +352,7 @@ def run_cv_match(
         except Exception:
             pass
 
-    md = render_markdown_report(profile, grouped)
+    md = render_markdown_report(profile, grouped, min_score=min_score)
     md_path = os.path.join(out_dir, f"{match_id}.md")
     pdf_path = os.path.join(out_dir, f"{match_id}.pdf")
     with open(md_path, "w", encoding="utf-8") as f:

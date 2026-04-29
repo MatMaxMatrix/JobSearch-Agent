@@ -1,5 +1,0 @@
-{
-  "match_id": "match_20260428_102853",
-  "status": "error",
-  "error": "DeepSeek returned empty content for model='deepseek-v4-pro'. Full response: {\"id\": \"4b6c184f-369d-456c-badf-fe1e2546855b\", \"object\": \"chat.completion\", \"created\": 1777364934, \"model\": \"deepseek-v4-pro\", \"choices\": [{\"index\": 0, \"message\": {\"role\": \"assistant\", \"content\": \"\", \"reasoning_content\": \"We are asked to output JSON only. The CV has details: Mobin Azimipanah, education, work experience (AI Engineer, Intern, Freelancer), projects, skills. Based on that, we need to extract search_keywords (3-7 words for LinkedIn job-search query), experience_level, and summary (~1"
-}

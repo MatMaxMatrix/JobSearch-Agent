@@ -28,6 +28,36 @@ class FilterManager:
         self.page = page
         self.timeout = timeout
 
+    async def _dismiss_modals(self) -> None:
+        """Close any LinkedIn modal overlay that intercepts clicks."""
+        try:
+            modal = await self.page.query_selector(".modal__overlay--visible")
+            if not modal:
+                return
+            logger.info("Modal overlay detected, attempting to dismiss")
+            close_selectors = [
+                ".modal__overlay--visible button[aria-label*='Dismiss']",
+                ".modal__overlay--visible button[aria-label*='Close']",
+                ".modal__overlay--visible .artdeco-modal__dismiss",
+                "button[aria-label='Dismiss']",
+            ]
+            for sel in close_selectors:
+                try:
+                    btn = await self.page.query_selector(sel)
+                    if btn and await btn.is_visible():
+                        await btn.click(force=True, timeout=2000)
+                        await async_random_sleep(0.3, 0.8)
+                        return
+                except Exception:
+                    continue
+            try:
+                await self.page.keyboard.press("Escape")
+                await async_random_sleep(0.3, 0.8)
+            except Exception:
+                pass
+        except Exception as e:
+            logger.debug(f"Modal dismissal failed: {e}")
+
     async def apply_search_filters(
         self,
         experience_levels: Optional[List[str]] = None,
@@ -43,15 +73,16 @@ class FilterManager:
         Returns:
             bool: True if all filters were applied successfully, False otherwise
         """
+        await self._dismiss_modals()
         success = True
 
-        # Apply experience level filter
         if experience_levels:
+            await self._dismiss_modals()
             if not await self.apply_experience_level_filter(experience_levels):
                 success = False
 
-        # Apply date posted filter
         if date_posted:
+            await self._dismiss_modals()
             if not await self.apply_date_posted_filter(date_posted):
                 success = False
 

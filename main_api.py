@@ -18,7 +18,7 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, WebSocket, BackgroundTasks, HTTPException, Depends, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
@@ -1243,6 +1243,7 @@ async def match_cv_to_jobs(
     countries: Optional[str] = None,
     top_per_country: int = 5,
     jobs_per_country: int = 25,
+    min_score: int = 75,
 ):
     """
     Match a PDF CV against recent (past 24h) LinkedIn jobs in the given countries
@@ -1280,6 +1281,7 @@ async def match_cv_to_jobs(
                     countries=country_list,
                     top_per_country=top_per_country,
                     jobs_per_country=jobs_per_country,
+                    min_score=min_score,
                 ),
             )
             _write_match_status(
@@ -1318,6 +1320,32 @@ async def get_match_status(match_id: str):
         raise HTTPException(status_code=404, detail="match_id not found")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+@app.get("/match/{match_id}/pdf")
+async def download_match_pdf(match_id: str):
+    """Download the generated match report as a PDF file."""
+    pdf_path = os.path.join(match_dir, f"{match_id}.pdf")
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail="PDF not found (still in progress or failed)")
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=f"{match_id}.pdf",
+    )
+
+
+@app.get("/match/{match_id}/markdown")
+async def download_match_markdown(match_id: str):
+    """Download the generated match report as a Markdown file."""
+    md_path = os.path.join(match_dir, f"{match_id}.md")
+    if not os.path.exists(md_path):
+        raise HTTPException(status_code=404, detail="Markdown not found (still in progress or failed)")
+    return FileResponse(
+        md_path,
+        media_type="text/markdown",
+        filename=f"{match_id}.md",
+    )
 
 
 if __name__ == "__main__":
