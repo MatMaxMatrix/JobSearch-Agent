@@ -64,7 +64,7 @@ This update enhances the JobSearch Agent with improved API input/output handling
 ### 1. Start the Backend API
 ```bash
 cd JobSearch-Agent
-python main_api.py
+jobsearch-api
 ```
 
 ### 2. Start the Frontend WebApp

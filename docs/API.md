@@ -16,7 +16,7 @@ The API uses a **unified job search pipeline** (`src/utils/job_search_pipeline.p
 ### Start the Server
 
 ```bash
-python main_api.py
+jobsearch-api
 ```
 
 The server runs on `http://localhost:8000` by default.

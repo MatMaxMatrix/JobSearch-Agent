@@ -301,7 +301,7 @@ This allows you to:
 You can also use the scraper programmatically in Python:
 
 ```python
-from src.scraper.search.linkedin_scraper import LinkedInScraper
+from jobsearch_agent.scraper.search.linkedin_scraper import LinkedInScraper
 
 # Initialize scraper
 scraper = LinkedInScraper(headless=True)
@@ -331,7 +331,7 @@ finally:
 ### Custom Browser Options
 
 ```python
-from src.scraper.search.linkedin_scraper import LinkedInScraper
+from jobsearch_agent.scraper.search.linkedin_scraper import LinkedInScraper
 
 # Custom configuration
 scraper = LinkedInScraper(

@@ -9,6 +9,7 @@ venv/
 .venv/
 ENV/
 key.json
+*.egg-info/
 
 # IDEs
 .vscode/
@@ -29,17 +30,18 @@ docs/
 tests/
 *.ipynb
 
-# Output and data (will be recreated)
+# Output and data (will be recreated at runtime)
 output/
-jobs/*.json
+jobs/*.db
+jobs/job_postings_20*.json
+jobs/job_bulk_text_*.txt
+data/linkedin_state.json
 .pytest_cache/
+.ruff_cache/
 
 # Environment files
 .env
 .env.local
-
-# Archives
-archive/
 
 # Examples
 examples/
@@ -50,4 +52,3 @@ examples/
 # Build artifacts
 build/
 dist/
-*.egg-info/

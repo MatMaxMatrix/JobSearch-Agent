@@ -79,7 +79,7 @@ JobSearch-Agent/
 │   ├── agents/                   # AI agents
 │   │   ├── job_details_parser.py
 │   │   ├── cv_writer.py
-│   │   └── coverLetter_writer.py
+│   │   └── cover_letter_writer.py
 │   ├── scraper/                  # Web scraping
 │   │   └── search/
 │   │       └── linkedin_scraper.py
@@ -213,7 +213,7 @@ DEFAULT_TIMEOUT = 20
 # tests/test_linkedin_scraper.py
 import pytest
 from unittest.mock import Mock, patch
-from src.scraper.search.linkedin_scraper import LinkedInScraper
+from jobsearch_agent.scraper.search.linkedin_scraper import LinkedInScraper
 
 class TestLinkedInScraper:
     def setup_method(self):

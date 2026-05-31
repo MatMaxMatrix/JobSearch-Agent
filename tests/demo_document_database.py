@@ -9,7 +9,7 @@ generated CVs and cover letters instead of text files.
 import os
 import json
 from datetime import datetime
-from src.utils.document_database import DocumentStorage, DocumentDatabase
+from jobsearch_agent.utils.document_database import DocumentStorage, DocumentDatabase
 
 
 def demo_document_storage():

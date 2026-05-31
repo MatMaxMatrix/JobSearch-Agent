@@ -12,7 +12,7 @@ This script provides a comprehensive solution for:
 import os
 import glob
 import json
-from src.utils.job_database import JobDatabase
+from jobsearch_agent.utils.job_database import JobDatabase
 
 def main():
     """Main migration function"""

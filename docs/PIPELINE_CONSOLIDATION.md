@@ -70,7 +70,7 @@ async def run_job_search_async(...):  # For FastAPI/web services
 - Unified database operations
 
 ### ✅ **Developer Experience**
-- Simpler imports (`from src.utils.job_search_pipeline import ...`)
+- Simpler imports (`from jobsearch_agent.utils.job_search_pipeline import ...`)
 - Clear separation of sync vs async usage
 - Better code organization
 
@@ -83,7 +83,7 @@ async def run_job_search_async(...):  # For FastAPI/web services
 
 ### CLI/Script Usage (Sync)
 ```python
-from src.utils.job_search_pipeline import run_job_search
+from jobsearch_agent.utils.job_search_pipeline import run_job_search
 
 result = run_job_search(
     keywords="Python Developer",
@@ -94,7 +94,7 @@ result = run_job_search(
 
 ### FastAPI Usage (Async)
 ```python
-from src.utils.job_search_pipeline import run_job_search_async
+from jobsearch_agent.utils.job_search_pipeline import run_job_search_async
 
 async def api_search():
     result = await run_job_search_async(
@@ -107,7 +107,7 @@ async def api_search():
 
 ### Direct Pipeline Usage
 ```python
-from src.utils.job_search_pipeline import JobSearchPipeline
+from jobsearch_agent.utils.job_search_pipeline import JobSearchPipeline
 
 # Sync mode (default)
 pipeline = JobSearchPipeline("Python Developer")

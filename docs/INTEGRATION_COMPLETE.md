@@ -35,13 +35,13 @@ All requested features have been successfully integrated into the JobSearch Agen
 #### Option A: Normal Mode
 ```bash
 cd "e:\Stuff\Jobs_Agent\JobSearch-Agent"
-python start_api.py --install
+jobsearch-api --install
 ```
 
 #### Option B: Test Mode (Recommended for first run)
 ```bash
 cd "e:\Stuff\Jobs_Agent\JobSearch-Agent"
-python start_api.py --install --test
+jobsearch-api --install --test
 ```
 
 The test mode will:

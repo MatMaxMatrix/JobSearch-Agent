@@ -102,7 +102,7 @@ async def test_browser_manager():
     print("\n🔍 Testing BrowserManager with Windows compatibility...")
     
     try:
-        from src.scraper.search.linkedin_scraper.browser import BrowserManager
+        from jobsearch_agent.scraper.search.linkedin_scraper.browser import BrowserManager
         
         # Test browser manager initialization
         browser_manager = BrowserManager(browser="chromium", headless=True)

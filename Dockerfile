@@ -32,4 +32,4 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Run the application
-CMD ["uvicorn", "main_api:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "jobsearch_agent.api.app:app", "--host", "0.0.0.0", "--port", "8080"]

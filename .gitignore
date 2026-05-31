@@ -4,18 +4,37 @@ __pycache__/
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
 
 # Virtual environments
-.venv
+.venv/
 .env
+.env.local
 key.json
 
-# Generated reports and uploaded CVs (contain PII)
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test / lint caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Generated job-search artifacts
+jobs/*.db
+jobs/job_postings_20*.json
+jobs/job_bulk_text_*.txt
+output/job_search_*.json
+output/search_history.json
+output/linkedin/
 output/match/
 
 # LinkedIn session cookies (sensitive)
 data/linkedin_state.json
 
-# Browser/scraper runtime artifacts
+# Browser / scraper runtime artifacts
 geckodriver.log
+*.log

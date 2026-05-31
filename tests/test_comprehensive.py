@@ -23,9 +23,9 @@ from unittest.mock import patch, MagicMock
 from typing import Dict, List, Any
 
 # Import all required modules
-from src.utils.job_database import JobDatabase
-from src.utils.job_search_pipeline import JobSearchPipeline, run_job_search
-from src.agents.job_details_parser import call_job_parsr_agent, create_parse_bulk_text_agent
+from jobsearch_agent.utils.job_database import JobDatabase
+from jobsearch_agent.utils.job_search_pipeline import JobSearchPipeline, run_job_search
+from jobsearch_agent.agents.job_details_parser import call_job_parsr_agent, create_parse_bulk_text_agent
 
 # Configuration
 API_BASE_URL = "http://localhost:8000"
