@@ -4,7 +4,7 @@ Test script to verify Windows async Playwright fix
 """
 import sys
 import asyncio
-from src.utils.job_search_pipeline import run_job_search_async
+from jobsearch_agent.utils.job_search_pipeline import run_job_search_async
 
 # Apply Windows fix
 if sys.platform == "win32":

@@ -136,7 +136,7 @@ The demo successfully showed:
 ### Store Documents (New Way)
 
 ```python
-from src.utils.document_database import DocumentStorage
+from jobsearch_agent.utils.document_database import DocumentStorage
 
 # Store CV
 cv_id = DocumentStorage.store_cv(

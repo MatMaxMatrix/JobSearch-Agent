@@ -92,7 +92,7 @@ The previous Google search dependency has been completely removed and replaced w
 ### Starting the Backend:
 ```bash
 cd "e:\Stuff\Jobs_Agent\JobSearch-Agent"
-python start_api.py
+jobsearch-api
 ```
 
 ### Testing the API:

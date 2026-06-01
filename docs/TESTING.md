@@ -47,7 +47,7 @@ The comprehensive test suite covers:
 - 🔗 Database API functionality
 - 🔗 Search endpoint validation
 
-*Note: API tests require the server to be running (`python main_api.py`)*
+*Note: API tests require the server to be running (`jobsearch-api`)*
 
 ### 6. WebSocket Functionality (Optional)
 - 🔗 WebSocket connection testing
@@ -130,7 +130,7 @@ While the comprehensive test runs everything, you can still test specific compon
 
 ```bash
 # Terminal 1: Start the API server
-python main_api.py
+jobsearch-api
 
 # Terminal 2: Run comprehensive tests (will include API tests)
 python test_comprehensive.py

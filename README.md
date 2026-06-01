@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://www.python.org/downloads/">
-    <img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+">
+    <img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+">
   </a>
   <a href="https://github.com/sreekar2858/JobSearch-Agent/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
@@ -36,11 +36,24 @@ An intelligent job search automation system with **LinkedIn scraping**, **AI-pow
 ```bash
 git clone https://github.com/sreekar2858/JobSearch-Agent.git
 cd JobSearch-Agent
-pip install -r requirements.txt
+
+# Install as an editable package (recommended — registers the CLI entry points)
+pip install -e .
+
+# Or install pinned dependencies the legacy way:
+# pip install -r requirements.txt
+
+# Install Playwright browsers (one-time, required for scraping)
+playwright install --with-deps chromium
 ```
 
+After install you have two CLI commands on your PATH:
+
+- `jobsearch-agent` — search / process / parse pipelines
+- `jobsearch-api` — Uvicorn launcher for the FastAPI server (`http://localhost:8000/docs`)
+
 ### 2. Setup (Optional but Recommended)
-Create a `.env` file for enhanced features:
+Copy `.env.example` to `.env` and fill in your credentials:
 ```env
 # LinkedIn credentials (for better scraping results)
 LINKEDIN_USERNAME=sreekar2858@gmail.com
@@ -53,13 +66,13 @@ GOOGLE_API_KEY=your_gemini_api_key
 ### 3. Start Scraping
 ```bash
 # LinkedIn job search
-python -m src.scraper.search.linkedin_scraper "Software Engineer" "San Francisco" --max-jobs 10
+python -m jobsearch_agent.scraper.search.linkedin_scraper "Software Engineer" "San Francisco" --max-jobs 10
 
 # Get credentials for job sites
-python -m src.scraper.buggmenot --website glassdoor.com
+python -m jobsearch_agent.scraper.buggmenot --website glassdoor.com
 
 # Extract from specific job URL
-python -m src.scraper.search.linkedin_scraper --job-url "https://linkedin.com/jobs/view/123456789"
+python -m jobsearch_agent.scraper.search.linkedin_scraper --job-url "https://linkedin.com/jobs/view/123456789"
 ```
 
 ---
@@ -71,16 +84,16 @@ Advanced LinkedIn job scraper with anonymization and proxy support:
 
 ```bash
 # Basic search
-python -m src.scraper.search.linkedin_scraper "Python Developer" "Remote" --max-jobs 5
+python -m jobsearch_agent.scraper.search.linkedin_scraper "Python Developer" "Remote" --max-jobs 5
 
 # With browser options
-python -m src.scraper.search.linkedin_scraper "Data Scientist" "NYC" --browser firefox --headless
+python -m jobsearch_agent.scraper.search.linkedin_scraper "Data Scientist" "NYC" --browser firefox --headless
 
 # With anonymization disabled
-python -m src.scraper.search.linkedin_scraper "DevOps Engineer" "Berlin" --no-anonymize
+python -m jobsearch_agent.scraper.search.linkedin_scraper "DevOps Engineer" "Berlin" --no-anonymize
 
 # With proxy
-python -m src.scraper.search.linkedin_scraper "ML Engineer" "London" --proxy http://proxy:8080
+python -m jobsearch_agent.scraper.search.linkedin_scraper "ML Engineer" "London" --proxy http://proxy:8080
 ```
 
 **Key Features:**
@@ -95,13 +108,13 @@ Get login credentials for job sites:
 
 ```bash
 # Basic usage
-python -m src.scraper.buggmenot --website economist.com
+python -m jobsearch_agent.scraper.buggmenot --website economist.com
 
 # With browser visible
-python -m src.scraper.buggmenot --website nytimes.com --visible
+python -m jobsearch_agent.scraper.buggmenot --website nytimes.com --visible
 
 # With proxy
-python -m src.scraper.buggmenot --website wsj.com --proxy socks5://proxy:1080
+python -m jobsearch_agent.scraper.buggmenot --website wsj.com --proxy socks5://proxy:1080
 ```
 
 ### 🤖 **AI Job Processing & Pipeline**
@@ -109,13 +122,13 @@ Unified job search pipeline with both synchronous and asynchronous support:
 
 ```bash
 # Complete job search workflow with AI processing
-python main.py search "Frontend Developer" --locations "Berlin" --generate-cv --generate-cover-letter
+jobsearch-agent search "Frontend Developer" --locations "Berlin" --generate-cv --generate-cover-letter
 
 # Direct pipeline usage (sync mode for CLI)
-python -c "from src.utils.job_search_pipeline import run_job_search; run_job_search('Python Developer', max_jobs=5)"
+python -c "from jobsearch_agent.utils.job_search_pipeline import run_job_search; run_job_search('Python Developer', max_jobs=5)"
 
 # Start API server (uses async pipeline for FastAPI)
-python main_api.py
+jobsearch-api
 # Visit http://localhost:8000/docs for API documentation
 ```
 
@@ -145,23 +158,23 @@ python main_api.py
 
 ```bash
 # LinkedIn job search with 20 results
-python -m src.scraper.search.linkedin_scraper "Software Engineer" "Remote" --max-jobs 20
+python -m jobsearch_agent.scraper.search.linkedin_scraper "Software Engineer" "Remote" --max-jobs 20
 
 # LinkedIn search with filters
-python -m src.scraper.search.linkedin_scraper "Data Scientist" "SF" --experience-levels "mid_senior" --date-posted "past_week"
+python -m jobsearch_agent.scraper.search.linkedin_scraper "Data Scientist" "SF" --experience-levels "mid_senior" --date-posted "past_week"
 
 # Get job details from specific URL
-python -m src.scraper.search.linkedin_scraper --job-url "https://linkedin.com/jobs/view/4243594281/"
+python -m jobsearch_agent.scraper.search.linkedin_scraper --job-url "https://linkedin.com/jobs/view/4243594281/"
 
 # BugMeNot credentials
-python -m src.scraper.buggmenot --website glassdoor.com --output credentials.json
+python -m jobsearch_agent.scraper.buggmenot --website glassdoor.com --output credentials.json
 
 # Links only (fast collection)
-python -m src.scraper.search.linkedin_scraper "Python" "NYC" --links-only --max-pages 3
+python -m jobsearch_agent.scraper.search.linkedin_scraper "Python" "NYC" --links-only --max-pages 3
 
 # Help for any tool
-python -m src.scraper.search.linkedin_scraper --help
-python -m src.scraper.buggmenot --help
+python -m jobsearch_agent.scraper.search.linkedin_scraper --help
+python -m jobsearch_agent.scraper.buggmenot --help
 ```
 
 ---
@@ -196,7 +209,7 @@ Contributions welcome! See [DEVELOPMENT.md](docs/DEVELOPMENT.md) for guidelines.
 **Single Job Mode:**
 ```bash
 # Extract from specific job URL
-python -m src.scraper.search.linkedin_scraper --job-url "https://linkedin.com/jobs/view/123456789"
+python -m jobsearch_agent.scraper.search.linkedin_scraper --job-url "https://linkedin.com/jobs/view/123456789"
 ```
 
 **Key Options:**
@@ -210,14 +223,14 @@ python -m src.scraper.search.linkedin_scraper --job-url "https://linkedin.com/jo
 **Complete Workflow:**
 ```bash
 # Unified pipeline - search + generate documents
-python main.py search "Frontend Developer" --locations "Berlin" --generate-cv --generate-cover-letter
+jobsearch-agent search "Frontend Developer" --locations "Berlin" --generate-cv --generate-cover-letter
 
 # Process existing job data
-python main.py process linkedin_jobs.json --generate-cv
+jobsearch-agent process linkedin_jobs.json --generate-cv
 
 # Direct pipeline usage
 python -c "
-from src.utils.job_search_pipeline import run_job_search, run_job_search_async
+from jobsearch_agent.utils.job_search_pipeline import run_job_search, run_job_search_async
 # Sync version (for CLI/scripts)
 result = run_job_search('Python Developer', max_jobs=5)
 # Async version (for FastAPI/web services) - use with await in async context
@@ -234,7 +247,7 @@ result = run_job_search('Python Developer', max_jobs=5)
 
 **Start server and access documentation:**
 ```bash
-python main_api.py
+jobsearch-api
 # Visit http://localhost:8000/docs for interactive API documentation
 ```
 
@@ -252,31 +265,29 @@ The project is organized for easy navigation and contribution:
 
 ```
 JobSearch-Agent/
-├── main.py                           # CLI interface
-├── main_api.py                       # FastAPI server  
-├── test_comprehensive.py             # Consolidated test suite
-├── migrate_jobs_to_db.py             # Database migration utility
-├── src/
-│   ├── agents/                       # AI agents (CV writer, cover letter, parser)
-│   ├── scraper/                      # Web scraping modules
-│   ├── prompts/                      # AI agent prompts
-│   └── utils/
-│       ├── job_search_pipeline.py    # 🔄 Unified sync/async pipeline
-│       ├── job_database.py           # SQLite database operations
-│       └── file_utils.py             # Utilities and helpers
-├── config/                           # Configuration files
-├── data/                             # Templates and samples
-├── jobs/                             # Job database and JSON exports
-├── output/                           # Generated outputs
-├── docs/                             # 📚 Complete documentation
-│   ├── README.md                     # Documentation index
-│   ├── API.md                        # API reference
-│   ├── ADVANCED_CONFIGURATION.md    # Production setup
-│   ├── DEVELOPMENT.md                # Development guide
-│   ├── TESTING.md                    # Testing procedures
-│   ├── CHANGELOG.md                  # Version history
-│   └── TODO.md                       # Roadmap
-└── examples/                         # Usage examples
+├── jobsearch_agent/                  # Importable Python package
+│   ├── __init__.py
+│   ├── __main__.py                   # `python -m jobsearch_agent` → CLI
+│   ├── cli.py                        # CLI implementation (jobsearch-agent)
+│   ├── api/
+│   │   ├── app.py                    # FastAPI application
+│   │   └── server.py                 # Uvicorn launcher (jobsearch-api)
+│   ├── agents/                       # AI agents (CV / cover letter / parser / search)
+│   ├── scraper/                      # LinkedIn, BugMeNot, and Crawl4AI scrapers
+│   ├── prompts/                      # Agent prompts
+│   └── utils/                        # Pipelines, databases, file helpers
+├── tests/                            # Test scripts and demos
+├── config/                           # YAML configuration files
+├── data/                             # Templates and sample documents
+├── jobs/                             # Seed examples (DBs & timestamped JSON are gitignored)
+├── output/                           # Runtime outputs (gitignored)
+├── docs/                             # Complete documentation (incl. DEPLOYMENT.md)
+├── examples/                         # Usage examples (React client, sample output)
+├── pyproject.toml                    # Package metadata + entry points
+├── Dockerfile
+├── requirements.txt                  # Pinned deps for non-PEP-517 installers
+├── .env.example                      # Template for environment variables
+└── README.md
 ```
 
 ---
@@ -402,9 +413,9 @@ All detailed documentation is organized in the **[docs/](docs/)** directory:
 - **[🧪 Testing Guide](docs/TESTING.md)** - Testing procedures and comprehensive test suite
 
 ### Quick Reference
-- **Run Tests**: `python test_comprehensive.py`
-- **Start API Server**: `python main_api.py` → Visit `http://localhost:8000/docs`
-- **CLI Help**: `python main.py --help`
+- **Run Tests**: `pytest` (or `python tests/test_comprehensive.py`)
+- **Start API Server**: `jobsearch-api` → Visit `http://localhost:8000/docs`
+- **CLI Help**: `jobsearch-agent --help`
 - **Configuration**: See `config/` directory for all settings
 
 ### Additional Resources
@@ -434,12 +445,13 @@ Contributions are welcome! Please see our [Development Guide](docs/DEVELOPMENT.m
 ```bash
 git clone https://github.com/sreekar2858/JobSearch-Agent.git
 cd JobSearch-Agent
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+playwright install --with-deps chromium
 
-# Run comprehensive tests
-python test_comprehensive.py
+# Run tests
+pytest
 ```
 
 See **[Testing Guide](docs/TESTING.md)** for complete testing documentation.
