@@ -1,0 +1,22 @@
+services:
+  jobsearch:
+    build: .
+    image: jobsearch-agent:dev
+    container_name: jobsearch-agent
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    volumes:
+      # Persist generated artifacts across container restarts.
+      - ./output:/app/output
+      - ./jobs:/app/jobs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health', timeout=2).status == 200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

@@ -61,6 +61,13 @@ jobsearch-api = "jobsearch_agent.api.server:main"
 include = ["jobsearch_agent*"]
 exclude = ["tests*", "examples*", "docs*"]
 
+[tool.setuptools.package-data]
+jobsearch_agent = [
+    "api/ui/*.html",
+    "api/ui/*.css",
+    "api/ui/*.js",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

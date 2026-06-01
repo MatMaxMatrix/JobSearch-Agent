@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JobSearch Agent · Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"
+    ></script>
+    <style>
+      [x-cloak] { display: none !important; }
+      body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+      .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+      .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+      .scrollbar-thin::-webkit-scrollbar-thumb { background: rgb(71 85 105); border-radius: 3px; }
+    </style>
+  </head>
+  <body class="h-full bg-slate-950 text-slate-100">
+    <div x-data="app()" x-cloak class="flex min-h-full flex-col">
+      <!-- Top bar -->
+      <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur">
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <div class="flex items-center gap-3">
+            <div class="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 font-bold">JS</div>
+            <div>
+              <h1 class="text-base font-semibold">JobSearch Agent</h1>
+              <p class="text-xs text-slate-400">Console · v<span x-text="version"></span></p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="flex items-center gap-2 text-xs">
+              <span class="h-2 w-2 rounded-full" :class="health.ok ? 'bg-emerald-400' : 'bg-rose-500'"></span>
+              <span class="text-slate-400" x-text="health.label"></span>
+            </span>
+            <span class="flex items-center gap-2 text-xs">
+              <span class="h-2 w-2 rounded-full" :class="ws.connected ? 'bg-emerald-400' : 'bg-slate-600'"></span>
+              <span class="text-slate-400">WebSocket</span>
+            </span>
+            <a href="/docs" class="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800">OpenAPI · /docs</a>
+          </div>
+        </div>
+      </header>
+
+      <main class="mx-auto w-full max-w-7xl flex-1 px-6 py-8">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <!-- LEFT column: search form -->
+          <section class="lg:col-span-2 space-y-6">
+            <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+              <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-lg font-semibold">Start a job search</h2>
+                <span class="text-xs text-slate-500">POST /search</span>
+              </div>
+
+              <form @submit.prevent="submitSearch" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <label class="sm:col-span-2 text-sm">
+                  <span class="mb-1 block text-slate-400">Keywords</span>
+                  <input x-model="form.keywords" required placeholder="e.g. Senior ML Engineer" class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-indigo-500" />
+                </label>
+
+                <label class="text-sm">
+                  <span class="mb-1 block text-slate-400">Locations (comma-separated)</span>
+                  <input x-model="form.locations" placeholder="Berlin, Remote" class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-indigo-500" />
+                </label>
+
+                <label class="text-sm">
+                  <span class="mb-1 block text-slate-400">Max jobs / location</span>
+                  <input x-model.number="form.max_jobs" type="number" min="1" max="50" class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-indigo-500" />
+                </label>
+
+                <label class="text-sm">
+                  <span class="mb-1 block text-slate-400">Job type</span>
+                  <select x-model="form.job_type" class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-indigo-500">
+                    <option>full-time</option><option>part-time</option><option>contract</option><option>internship</option><option>any</option>
+                  </select>
+                </label>
+
+                <label class="text-sm">
+                  <span class="mb-1 block text-slate-400">Experience</span>
+                  <select x-model="form.experience_level" class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-indigo-500">
+                    <option>entry</option><option>mid-level</option><option>senior</option><option>any</option>
+                  </select>
+                </label>
+
+                <label class="sm:col-span-2 flex items-center gap-2 text-sm text-slate-300">
+                  <input type="checkbox" x-model="useWebsocket" class="h-4 w-4 rounded border-slate-600 bg-slate-950" />
+                  Stream live progress via WebSocket
+                </label>
+
+                <div class="sm:col-span-2 flex items-center justify-between gap-3 pt-2">
+                  <p class="text-xs text-slate-500" x-show="!apiKey">
+                    ⚠ Set an API key below — <code class="text-indigo-300">/search</code> is protected.
+                  </p>
+                  <button type="submit" :disabled="busy"
+                    class="rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium hover:bg-indigo-400 disabled:opacity-50">
+                    <span x-show="!busy">Run search</span>
+                    <span x-show="busy">Working…</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Live log -->
+            <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+              <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-sm font-semibold">Live log</h2>
+                <button @click="logs = []" class="text-xs text-slate-500 hover:text-slate-300">clear</button>
+              </div>
+              <div class="scrollbar-thin h-56 overflow-y-auto rounded-md bg-black/40 p-3 font-mono text-xs leading-relaxed">
+                <template x-for="line in logs" :key="line.id">
+                  <div :class="line.kind === 'err' ? 'text-rose-400' : line.kind === 'ok' ? 'text-emerald-300' : 'text-slate-300'">
+                    <span class="text-slate-600" x-text="line.t"></span>
+                    <span x-text="line.msg"></span>
+                  </div>
+                </template>
+                <div x-show="!logs.length" class="text-slate-600">No activity yet.</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- RIGHT column: side panels -->
+          <aside class="space-y-6">
+            <!-- API key -->
+            <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+              <h2 class="mb-3 text-sm font-semibold">Server API key</h2>
+              <p class="mb-3 text-xs text-slate-400">Stored in your browser only. Sent as <code>X-API-Key</code>.</p>
+              <input x-model="apiKey" @input="saveKey" placeholder="paste API_KEY"
+                class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+            </div>
+
+            <!-- Stats -->
+            <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+              <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-sm font-semibold">Jobs database</h2>
+                <button @click="refreshStats" class="text-xs text-indigo-300 hover:text-indigo-200">refresh</button>
+              </div>
+              <dl class="grid grid-cols-2 gap-3 text-sm">
+                <template x-for="(v, k) in stats" :key="k">
+                  <div class="rounded-md bg-slate-950/60 p-3">
+                    <dt class="text-xs uppercase tracking-wide text-slate-500" x-text="k"></dt>
+                    <dd class="mt-1 text-lg font-semibold" x-text="v"></dd>
+                  </div>
+                </template>
+                <div x-show="!Object.keys(stats).length" class="col-span-2 text-xs text-slate-500">No stats available.</div>
+              </dl>
+            </div>
+
+            <!-- History -->
+            <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+              <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-sm font-semibold">Recent searches</h2>
+                <button @click="refreshHistory" class="text-xs text-indigo-300 hover:text-indigo-200">refresh</button>
+              </div>
+              <ul class="space-y-2 text-sm">
+                <template x-for="h in history" :key="h.id || h.search_id || h.timestamp">
+                  <li class="rounded-md border border-slate-800 p-3">
+                    <p class="font-medium" x-text="h.keywords || h.query || '(no keywords)'"></p>
+                    <p class="text-xs text-slate-500" x-text="(h.locations || []).join(', ')"></p>
+                    <p class="text-xs text-slate-600" x-text="h.timestamp || h.created_at || ''"></p>
+                  </li>
+                </template>
+                <li x-show="!history.length" class="text-xs text-slate-500">No history yet.</li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+      </main>
+
+      <footer class="border-t border-slate-800 px-6 py-4 text-center text-xs text-slate-500">
+        JobSearch Agent · served by FastAPI at <span class="font-mono" x-text="location.origin"></span>
+      </footer>
+    </div>
+
+    <script>
+      function app() {
+        return {
+          version: 'dev',
+          health: { ok: false, label: 'checking…' },
+          apiKey: localStorage.getItem('jsa_api_key') || '',
+          stats: {},
+          history: [],
+          logs: [],
+          busy: false,
+          useWebsocket: true,
+          ws: { sock: null, connected: false },
+          form: {
+            keywords: '',
+            locations: 'Remote',
+            max_jobs: 5,
+            job_type: 'full-time',
+            experience_level: 'mid-level',
+          },
+
+          init() {
+            this.refreshHealth();
+            this.refreshStats();
+            this.refreshHistory();
+            this.connectWs();
+          },
+
+          saveKey() { localStorage.setItem('jsa_api_key', this.apiKey); },
+
+          log(msg, kind = 'info') {
+            this.logs.push({ id: Date.now() + Math.random(), msg, kind, t: new Date().toLocaleTimeString() + '  ' });
+            if (this.logs.length > 200) this.logs.splice(0, this.logs.length - 200);
+          },
+
+          async fetchJson(path, opts = {}) {
+            const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+            if (this.apiKey) headers['X-API-Key'] = this.apiKey;
+            const r = await fetch(path, { ...opts, headers });
+            const text = await r.text();
+            let data; try { data = JSON.parse(text); } catch { data = { raw: text }; }
+            if (!r.ok) throw new Error(data.detail || data.raw || r.statusText);
+            return data;
+          },
+
+          async refreshHealth() {
+            try {
+              const d = await this.fetchJson('/health');
+              this.health = { ok: true, label: `${d.service} ${d.version}` };
+              this.version = d.version || 'dev';
+            } catch (e) {
+              this.health = { ok: false, label: 'offline' };
+            }
+          },
+
+          async refreshStats() {
+            try { this.stats = await this.fetchJson('/jobs/stats'); }
+            catch (e) { this.log(`stats: ${e.message}`, 'err'); }
+          },
+
+          async refreshHistory() {
+            try {
+              const d = await this.fetchJson('/search/history');
+              this.history = Array.isArray(d) ? d : (d.history || []);
+            } catch (e) { this.log(`history: ${e.message}`, 'err'); }
+          },
+
+          connectWs() {
+            try {
+              const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+              const sock = new WebSocket(`${proto}://${location.host}/ws`);
+              sock.onopen = () => { this.ws.connected = true; this.log('WebSocket open', 'ok'); };
+              sock.onclose = () => { this.ws.connected = false; this.log('WebSocket closed'); };
+              sock.onerror = () => { this.ws.connected = false; };
+              sock.onmessage = (ev) => {
+                try {
+                  const m = JSON.parse(ev.data);
+                  const msg = m.message || m.progress || m.result ? JSON.stringify(m) : ev.data;
+                  this.log(`◀ ${msg}`);
+                } catch { this.log(`◀ ${ev.data}`); }
+              };
+              this.ws.sock = sock;
+            } catch (e) { this.log(`ws error: ${e.message}`, 'err'); }
+          },
+
+          async submitSearch() {
+            const payload = {
+              keywords: this.form.keywords,
+              locations: this.form.locations.split(',').map((s) => s.trim()).filter(Boolean),
+              job_type: this.form.job_type,
+              experience_level: this.form.experience_level,
+              max_jobs: this.form.max_jobs,
+            };
+            this.busy = true;
+            this.log(`▶ search: ${payload.keywords} (${payload.locations.join(', ')})`);
+            try {
+              if (this.useWebsocket && this.ws.connected) {
+                this.ws.sock.send(JSON.stringify({ action: 'search', data: payload }));
+                this.log('search submitted via WebSocket', 'ok');
+              } else {
+                const d = await this.fetchJson('/search', { method: 'POST', body: JSON.stringify(payload) });
+                this.log(`search queued: ${d.search_id || d.id || JSON.stringify(d)}`, 'ok');
+                setTimeout(() => this.refreshHistory(), 1000);
+              }
+            } catch (e) {
+              this.log(`search failed: ${e.message}`, 'err');
+            } finally { this.busy = false; }
+          },
+        };
+      }
+    </script>
+  </body>
+</html>

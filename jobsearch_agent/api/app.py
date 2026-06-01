@@ -95,6 +95,11 @@ output_dir = os.path.join(os.getcwd(), "output")
 ensure_dir_exists(output_dir)
 app.mount("/output", StaticFiles(directory=output_dir), name="output")
 
+# Bundled web console (single-page HTML + Tailwind CDN + Alpine.js, no build step).
+UI_DIR = Path(__file__).resolve().parent / "ui"
+if UI_DIR.is_dir():
+    app.mount("/ui", StaticFiles(directory=UI_DIR), name="ui")
+
 
 # Define data models
 class JobSearchRequest(BaseModel):
@@ -281,9 +286,19 @@ def update_search_status(search_id: str, status: str, job_count: int = None):
 
 
 # Define API endpoints
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def root():
-    return {"message": "JobSearch API is running. Access /docs for API documentation."}
+    """Serve the bundled web console; fall back to a JSON message if the UI is missing."""
+    index = UI_DIR / "index.html"
+    if index.is_file():
+        return FileResponse(index)
+    return {"message": "JobSearch API is running. Visit /docs for the OpenAPI schema."}
+
+
+@app.get("/health")
+async def health():
+    """Lightweight liveness probe used by the UI and container orchestrators."""
+    return {"status": "ok", "service": app.title, "version": app.version}
 
 
 @app.post("/search", dependencies=[Depends(verify_api_key)])
