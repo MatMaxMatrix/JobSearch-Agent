@@ -1,6 +1,8 @@
 # Core AI and Agent dependencies
-google-adk>=0.1.0
+# [extensions] provides the LiteLlm wrapper the agents import.
+google-adk[extensions]>=1.18.0
 google-genai>=0.7.0
+litellm>=1.40.0
 
 # Configuration and environment
 python-dotenv>=1.0.0

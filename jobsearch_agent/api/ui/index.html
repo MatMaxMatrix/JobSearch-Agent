@@ -45,9 +45,119 @@
 
       <main class="mx-auto w-full max-w-7xl flex-1 px-6 py-8">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <!-- LEFT column: search form -->
+          <!-- LEFT column -->
           <section class="lg:col-span-2 space-y-6">
-            <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+            <!-- Tab switcher -->
+            <div class="inline-flex rounded-lg border border-slate-800 bg-slate-900/40 p-1 text-sm">
+              <button @click="tab = 'match'"
+                :class="tab === 'match' ? 'bg-indigo-500 text-white' : 'text-slate-400 hover:text-slate-200'"
+                class="rounded-md px-4 py-1.5 font-medium transition">Match my CV</button>
+              <button @click="tab = 'search'"
+                :class="tab === 'search' ? 'bg-indigo-500 text-white' : 'text-slate-400 hover:text-slate-200'"
+                class="rounded-md px-4 py-1.5 font-medium transition">Keyword search</button>
+            </div>
+
+            <!-- ============ CV MATCH ============ -->
+            <div x-show="tab === 'match'" class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+              <div class="mb-4 flex items-center justify-between">
+                <h2 class="text-lg font-semibold">Find jobs that match your CV</h2>
+                <span class="text-xs text-slate-500">POST /match</span>
+              </div>
+              <p class="mb-4 text-sm text-slate-400">
+                Upload your CV (PDF). It is parsed, then matched against recent LinkedIn jobs
+                in the countries you choose. You get a ranked report you can download.
+              </p>
+
+              <form @submit.prevent="submitMatch" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <!-- File drop -->
+                <label class="sm:col-span-2 text-sm">
+                  <span class="mb-1 block text-slate-400">Your CV (PDF)</span>
+                  <div class="flex items-center gap-3 rounded-md border border-dashed border-slate-700 bg-slate-950 px-3 py-4">
+                    <input type="file" accept="application/pdf,.pdf"
+                      @change="match.file = $event.target.files[0]"
+                      class="block w-full text-sm text-slate-300 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-500 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-indigo-400" />
+                  </div>
+                  <span x-show="match.file" class="mt-1 block text-xs text-emerald-300" x-text="match.file ? ('Selected: ' + match.file.name) : ''"></span>
+                </label>
+
+                <label class="sm:col-span-2 text-sm">
+                  <span class="mb-1 block text-slate-400">Countries to explore (comma-separated)</span>
+                  <input x-model="match.countries" placeholder="Netherlands, Germany, Italy"
+                    class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-indigo-500" />
+                  <span class="mt-1 block text-xs text-slate-500">Leave empty to use the default (Netherlands, Germany, Italy).</span>
+                </label>
+
+                <label class="text-sm">
+                  <span class="mb-1 block text-slate-400">Top matches / country</span>
+                  <input x-model.number="match.top_per_country" type="number" min="1" max="25"
+                    class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-indigo-500" />
+                </label>
+
+                <label class="text-sm">
+                  <span class="mb-1 block text-slate-400">Jobs scanned / country</span>
+                  <input x-model.number="match.jobs_per_country" type="number" min="1" max="100"
+                    class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-indigo-500" />
+                </label>
+
+                <label class="text-sm">
+                  <span class="mb-1 block text-slate-400">Minimum match score (0–100)</span>
+                  <input x-model.number="match.min_score" type="number" min="0" max="100"
+                    class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-indigo-500" />
+                </label>
+
+                <div class="sm:col-span-2 flex items-center justify-between gap-3 pt-2">
+                  <p class="text-xs text-slate-500" x-show="!apiKey">
+                    ⚠ Set an API key below — <code class="text-indigo-300">/match</code> is protected.
+                  </p>
+                  <button type="submit" :disabled="match.busy || !match.file"
+                    class="rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium hover:bg-indigo-400 disabled:opacity-50">
+                    <span x-show="!match.busy">Match my CV</span>
+                    <span x-show="match.busy">Matching…</span>
+                  </button>
+                </div>
+              </form>
+
+              <!-- Match result -->
+              <div x-show="match.result" class="mt-6 rounded-lg border border-slate-800 bg-slate-950/60 p-4">
+                <div class="mb-3 flex items-center justify-between">
+                  <h3 class="text-sm font-semibold">Match report</h3>
+                  <span class="rounded-full px-2 py-0.5 text-xs font-medium"
+                    :class="{
+                      'bg-amber-500/20 text-amber-300': match.result?.status === 'in_progress',
+                      'bg-emerald-500/20 text-emerald-300': match.result?.status === 'completed',
+                      'bg-rose-500/20 text-rose-300': match.result?.status === 'error'
+                    }"
+                    x-text="match.result?.status"></span>
+                </div>
+
+                <p x-show="match.result?.status === 'in_progress'" class="text-xs text-slate-400">
+                  Parsing your CV and scanning jobs… this can take a couple of minutes. Live progress is in the log on the right.
+                </p>
+                <p x-show="match.result?.status === 'error'" class="text-xs text-rose-300" x-text="match.result?.error"></p>
+
+                <!-- Counts per country -->
+                <div x-show="match.result?.counts_per_country" class="mt-2 flex flex-wrap gap-2">
+                  <template x-for="(count, country) in (match.result?.counts_per_country || {})" :key="country">
+                    <span class="rounded-md bg-slate-800 px-2 py-1 text-xs">
+                      <span class="text-slate-300" x-text="country"></span>:
+                      <span class="font-semibold text-indigo-300" x-text="count"></span>
+                    </span>
+                  </template>
+                </div>
+
+                <!-- Downloads -->
+                <div x-show="match.result?.status === 'completed'" class="mt-4 flex gap-3">
+                  <a :href="match.result?.markdown_url || ('/match/' + match.id + '/markdown')" target="_blank"
+                    class="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:bg-slate-800">View Markdown</a>
+                  <a :href="match.result?.pdf_url || ('/match/' + match.id + '/pdf')" target="_blank"
+                    x-show="match.result?.pdf_url"
+                    class="rounded-md bg-indigo-500 px-3 py-1.5 text-xs font-medium hover:bg-indigo-400">Download PDF</a>
+                </div>
+              </div>
+            </div>
+
+            <!-- ============ KEYWORD SEARCH ============ -->
+            <div x-show="tab === 'search'" class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
               <div class="mb-4 flex items-center justify-between">
                 <h2 class="text-lg font-semibold">Start a job search</h2>
                 <span class="text-xs text-slate-500">POST /search</span>
@@ -56,7 +166,7 @@
               <form @submit.prevent="submitSearch" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <label class="sm:col-span-2 text-sm">
                   <span class="mb-1 block text-slate-400">Keywords</span>
-                  <input x-model="form.keywords" required placeholder="e.g. Senior ML Engineer" class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-indigo-500" />
+                  <input x-model="form.keywords" placeholder="e.g. Senior ML Engineer" class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 outline-none focus:border-indigo-500" />
                 </label>
 
                 <label class="text-sm">
@@ -125,7 +235,7 @@
             <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
               <h2 class="mb-3 text-sm font-semibold">Server API key</h2>
               <p class="mb-3 text-xs text-slate-400">Stored in your browser only. Sent as <code>X-API-Key</code>.</p>
-              <input x-model="apiKey" @input="saveKey" placeholder="paste API_KEY"
+              <input x-model="apiKey" @input="saveKey" type="password" placeholder="paste API_KEY"
                 class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
             </div>
 
@@ -138,12 +248,27 @@
               <dl class="grid grid-cols-2 gap-3 text-sm">
                 <template x-for="(v, k) in stats" :key="k">
                   <div class="rounded-md bg-slate-950/60 p-3">
-                    <dt class="text-xs uppercase tracking-wide text-slate-500" x-text="k"></dt>
+                    <dt class="text-xs uppercase tracking-wide text-slate-500" x-text="k.replaceAll('_', ' ')"></dt>
                     <dd class="mt-1 text-lg font-semibold" x-text="v"></dd>
                   </div>
                 </template>
                 <div x-show="!Object.keys(stats).length" class="col-span-2 text-xs text-slate-500">No stats available.</div>
               </dl>
+
+              <!-- Breakdown lists (top companies, by source, …) -->
+              <template x-for="(items, name) in statLists" :key="name">
+                <div class="mt-4">
+                  <p class="mb-2 text-xs uppercase tracking-wide text-slate-500" x-text="name.replaceAll('_', ' ')"></p>
+                  <ul class="space-y-1 text-xs">
+                    <template x-for="(item, i) in items" :key="i">
+                      <li class="flex justify-between rounded bg-slate-950/60 px-2 py-1">
+                        <span class="truncate text-slate-300" x-text="itemLabel(item)"></span>
+                        <span class="ml-2 shrink-0 font-semibold text-indigo-300" x-text="item.count ?? ''"></span>
+                      </li>
+                    </template>
+                  </ul>
+                </div>
+              </template>
             </div>
 
             <!-- History -->
@@ -176,9 +301,11 @@
       function app() {
         return {
           version: 'dev',
+          tab: 'match',
           health: { ok: false, label: 'checking…' },
           apiKey: localStorage.getItem('jsa_api_key') || '',
           stats: {},
+          statLists: {},
           history: [],
           logs: [],
           busy: false,
@@ -190,6 +317,17 @@
             max_jobs: 5,
             job_type: 'full-time',
             experience_level: 'mid-level',
+          },
+          match: {
+            file: null,
+            countries: 'Netherlands, Germany, Italy',
+            top_per_country: 5,
+            jobs_per_country: 25,
+            min_score: 75,
+            busy: false,
+            id: null,
+            result: null,
+            poll: null,
           },
 
           init() {
@@ -227,14 +365,33 @@
           },
 
           async refreshStats() {
-            try { this.stats = await this.fetchJson('/jobs/stats'); }
-            catch (e) { this.log(`stats: ${e.message}`, 'err'); }
+            try {
+              const d = await this.fetchJson('/jobs/stats');
+              // /jobs/stats wraps the numbers as { success, data: {...} }.
+              const data = (d && typeof d.data === 'object' && d.data) ? d.data : (d || {});
+              // Split scalar metrics (shown as cards) from list breakdowns (shown as lists).
+              const scalars = {}, lists = {};
+              for (const [k, v] of Object.entries(data)) {
+                if (Array.isArray(v)) lists[k] = v;
+                else if (v !== null && typeof v === 'object') continue;
+                else scalars[k] = v;
+              }
+              this.stats = scalars;
+              this.statLists = lists;
+            } catch (e) { this.log(`stats: ${e.message}`, 'err'); }
+          },
+
+          itemLabel(item) {
+            if (item === null || typeof item !== 'object') return String(item);
+            return item.company || item.source || item.name || item.label
+              || Object.values(item).find((v) => typeof v === 'string') || '—';
           },
 
           async refreshHistory() {
             try {
               const d = await this.fetchJson('/search/history');
-              this.history = Array.isArray(d) ? d : (d.history || []);
+              // /search/history returns { searches: [...] }.
+              this.history = Array.isArray(d) ? d : (d.searches || d.history || []);
             } catch (e) { this.log(`history: ${e.message}`, 'err'); }
           },
 
@@ -257,6 +414,7 @@
           },
 
           async submitSearch() {
+            if (!this.form.keywords.trim()) { this.log('keywords are required', 'err'); return; }
             const payload = {
               keywords: this.form.keywords,
               locations: this.form.locations.split(',').map((s) => s.trim()).filter(Boolean),
@@ -278,6 +436,66 @@
             } catch (e) {
               this.log(`search failed: ${e.message}`, 'err');
             } finally { this.busy = false; }
+          },
+
+          async submitMatch() {
+            if (!this.match.file) { this.log('choose a PDF CV first', 'err'); return; }
+            if (!this.match.file.name.toLowerCase().endsWith('.pdf')) {
+              this.log('CV must be a PDF file', 'err'); return;
+            }
+            // Query params (the /match endpoint reads these from the query string).
+            const params = new URLSearchParams();
+            const countries = this.match.countries.split(',').map((s) => s.trim()).filter(Boolean);
+            if (countries.length) params.set('countries', countries.join(','));
+            params.set('top_per_country', this.match.top_per_country);
+            params.set('jobs_per_country', this.match.jobs_per_country);
+            params.set('min_score', this.match.min_score);
+
+            const fd = new FormData();
+            fd.append('cv', this.match.file);
+
+            const headers = {};
+            if (this.apiKey) headers['X-API-Key'] = this.apiKey;
+
+            this.match.busy = true;
+            this.match.result = null;
+            if (this.match.poll) { clearInterval(this.match.poll); this.match.poll = null; }
+            this.log(`▶ CV match: ${this.match.file.name} → ${countries.join(', ') || 'default countries'}`);
+
+            try {
+              const r = await fetch('/match?' + params.toString(), { method: 'POST', headers, body: fd });
+              const data = await r.json();
+              if (!r.ok) throw new Error(data.detail || r.statusText);
+              this.match.id = data.match_id;
+              this.match.result = { status: 'in_progress' };
+              this.log(`match started: ${data.match_id}`, 'ok');
+              this.pollMatch(data.match_id);
+            } catch (e) {
+              this.log(`match failed: ${e.message}`, 'err');
+              this.match.busy = false;
+            }
+          },
+
+          pollMatch(id) {
+            const tick = async () => {
+              try {
+                const d = await this.fetchJson('/match/' + id);
+                this.match.result = d;
+                if (d.status === 'completed') {
+                  clearInterval(this.match.poll); this.match.poll = null;
+                  this.match.busy = false;
+                  this.log('✅ match completed — report ready below', 'ok');
+                } else if (d.status === 'error') {
+                  clearInterval(this.match.poll); this.match.poll = null;
+                  this.match.busy = false;
+                  this.log(`match error: ${d.error || 'unknown'}`, 'err');
+                }
+              } catch (e) {
+                this.log(`poll: ${e.message}`, 'err');
+              }
+            };
+            tick();
+            this.match.poll = setInterval(tick, 3000);
           },
         };
       }

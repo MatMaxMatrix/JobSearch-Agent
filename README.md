@@ -1,18 +1,36 @@
 # JobSearch Agent
 
 <p align="center">
+  <em>Upload your CV, pick your countries, and get a ranked, downloadable report of the jobs that actually fit you — from a clean web console or a REST API, shipped in one Docker container.</em>
+</p>
+
+<p align="center">
   <a href="https://www.python.org/downloads/">
     <img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11+">
   </a>
-  <a href="https://github.com/sreekar2858/JobSearch-Agent/blob/main/LICENSE">
+  <a href="https://github.com/MatMaxMatrix/JobSearch-Agent/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
   </a>
-  <a href="https://github.com/sreekar2858/JobSearch-Agent/issues">
-    <img src="https://img.shields.io/github/issues/sreekar2858/JobSearch-Agent" alt="GitHub issues">
+  <a href="https://github.com/MatMaxMatrix/JobSearch-Agent/stargazers">
+    <img src="https://img.shields.io/github/stars/MatMaxMatrix/JobSearch-Agent?style=social" alt="GitHub stars">
   </a>
+  <a href="https://github.com/MatMaxMatrix/JobSearch-Agent/issues">
+    <img src="https://img.shields.io/github/issues/MatMaxMatrix/JobSearch-Agent" alt="GitHub issues">
+  </a>
+  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white" alt="Docker">
 </p>
 
-An intelligent job search automation system with **LinkedIn scraping**, **AI-powered CV generation**, and **cover letter creation**. Extract detailed job data, company information, and hiring team details with advanced anonymization and proxy support.
+An intelligent job-search automation toolkit. It scrapes recent **LinkedIn** postings, parses your **PDF CV** with an LLM, and scores every job against your background to produce a ranked match report — plus **AI-generated CVs and cover letters**. Drive it from a bundled **web console**, a **REST + WebSocket API**, or the **CLI**.
+
+## ✨ Highlights
+
+- 🖥️ **Web console** — upload your CV, choose target countries, watch live progress, and download the match report. No build step (Tailwind + Alpine via CDN), served straight from FastAPI at `/`.
+- 🎯 **CV → jobs matching** — `POST /match`: your CV is parsed, matched against recent jobs per country, and scored with an LLM rubric into a Markdown + PDF report.
+- 🤖 **AI documents** — tailored CV and cover-letter generation via a Google ADK agent pipeline.
+- 🔎 **Robust LinkedIn scraper** — Playwright-based, with session reuse, anonymization, and proxy support.
+- 🐳 **One-command Docker** — `docker compose up` and open the console. Bound to `127.0.0.1` by default.
+- 🧩 **Clean package** — installable (`pip install -e .`), `jobsearch-agent` / `jobsearch-api` entry points, CI on every push.
 
 ## 📋 Table of Contents
 
@@ -32,9 +50,26 @@ An intelligent job search automation system with **LinkedIn scraping**, **AI-pow
 
 ## 🚀 Quick Start
 
-### 1. Installation
+### Option A — Docker (recommended)
+
+The whole stack (API + web console + Playwright/Chromium) ships in one container.
+
 ```bash
-git clone https://github.com/sreekar2858/JobSearch-Agent.git
+git clone https://github.com/MatMaxMatrix/JobSearch-Agent.git
+cd JobSearch-Agent
+
+cp .env.example .env        # then fill in your keys (see Configuration)
+docker compose up --build
+```
+
+Open **http://localhost:8080** for the web console, or **/docs** for the OpenAPI schema.
+The port is bound to `127.0.0.1` only, so the app is reachable from your machine and not the network.
+
+### Option B — Local Python
+
+#### 1. Installation
+```bash
+git clone https://github.com/MatMaxMatrix/JobSearch-Agent.git
 cd JobSearch-Agent
 
 # Install as an editable package (recommended — registers the CLI entry points)
@@ -56,7 +91,7 @@ After install you have two CLI commands on your PATH:
 Copy `.env.example` to `.env` and fill in your credentials:
 ```env
 # LinkedIn credentials (for better scraping results)
-LINKEDIN_USERNAME=sreekar2858@gmail.com
+LINKEDIN_USERNAME=your_email@example.com
 LINKEDIN_PASSWORD=your_password
 
 # AI API key (for CV/cover letter generation)  
@@ -252,10 +287,15 @@ jobsearch-api
 ```
 
 **Key endpoints:**
-- `POST /search` - Start job search
-- `GET /search/{id}` - Get results
-- `POST /process` - Generate CV/cover letters
-- `POST /parse` - Parse job descriptions
+- `GET /` - Web console (the bundled UI)
+- `GET /health` - Liveness probe
+- `POST /match` - Match an uploaded PDF CV against recent jobs per country → `GET /match/{id}`
+- `POST /search` - Start a keyword job search → `GET /search/{id}`
+- `GET /search/history` - Recent searches
+- `GET /jobs/stats` - Database statistics
+- `WS /ws` - Live progress stream
+
+> Document-generation endpoints (`/process`, `/parse`) exist in the code but are currently disabled pending agent-pipeline testing.
 
 ---
 
@@ -271,7 +311,8 @@ JobSearch-Agent/
 │   ├── cli.py                        # CLI implementation (jobsearch-agent)
 │   ├── api/
 │   │   ├── app.py                    # FastAPI application
-│   │   └── server.py                 # Uvicorn launcher (jobsearch-api)
+│   │   ├── server.py                 # Uvicorn launcher (jobsearch-api)
+│   │   └── ui/                       # Bundled web console (HTML + Tailwind + Alpine, no build)
 │   ├── agents/                       # AI agents (CV / cover letter / parser / search)
 │   ├── scraper/                      # LinkedIn, BugMeNot, and Crawl4AI scrapers
 │   ├── prompts/                      # Agent prompts
@@ -285,6 +326,7 @@ JobSearch-Agent/
 ├── examples/                         # Usage examples (React client, sample output)
 ├── pyproject.toml                    # Package metadata + entry points
 ├── Dockerfile
+├── docker-compose.yml                # One-command run (API + UI), localhost-bound
 ├── requirements.txt                  # Pinned deps for non-PEP-517 installers
 ├── .env.example                      # Template for environment variables
 └── README.md
@@ -296,16 +338,27 @@ JobSearch-Agent/
 
 ### Basic Setup
 
-Create `.env` file with your credentials:
-```env
-# LinkedIn (recommended for better results)
-LINKEDIN_USERNAME=sreekar2858@gmail.com
-LINKEDIN_PASSWORD=your_password
+Copy `.env.example` to `.env` and fill in what you need. See [`.env.example`](.env.example) for the full list with comments.
 
-# AI APIs (for CV/cover letter generation)
+```env
+# API server — shared secret sent on the X-API-Key header (set this; the UI sends it too)
+API_KEY=change-me-please
+ALLOWED_ORIGIN=*                    # set to your site in production
+
+# CV → jobs matching (POST /match) uses DeepSeek
+DEEPSEEK_API_KEY=your_deepseek_key
+
+# AI CV / cover-letter generation (Google ADK / Gemini)
 GOOGLE_API_KEY=your_gemini_api_key
-OPENAI_API_KEY=your_openai_api_key  # Optional alternative
+
+# LinkedIn scraping (use a throwaway account; expect occasional captcha/rate-limits)
+LINKEDIN_USERNAME=your_email@example.com
+LINKEDIN_PASSWORD=your_password
 ```
+
+> **Which key do I need?** The web console and read-only endpoints need only `API_KEY`.
+> The **Match my CV** flow needs `DEEPSEEK_API_KEY` + LinkedIn credentials.
+> AI document generation needs `GOOGLE_API_KEY`.
 
 ### Advanced Configuration
 
@@ -443,7 +496,7 @@ Contributions are welcome! Please see our [Development Guide](docs/DEVELOPMENT.m
 
 ### Quick Start for Contributors
 ```bash
-git clone https://github.com/sreekar2858/JobSearch-Agent.git
+git clone https://github.com/MatMaxMatrix/JobSearch-Agent.git
 cd JobSearch-Agent
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
@@ -468,9 +521,9 @@ See **[Testing Guide](docs/TESTING.md)** for complete testing documentation.
 
 ## 📞 Contact & Links
 
-- **GitHub**: [@sreekar2858](https://github.com/sreekar2858)
-- **Repository**: [JobSearch-Agent](https://github.com/sreekar2858/JobSearch-Agent)
-- **Issues**: [Report bugs or request features](https://github.com/sreekar2858/JobSearch-Agent/issues)
+- **GitHub**: [@MatMaxMatrix](https://github.com/MatMaxMatrix)
+- **Repository**: [JobSearch-Agent](https://github.com/MatMaxMatrix/JobSearch-Agent)
+- **Issues**: [Report bugs or request features](https://github.com/MatMaxMatrix/JobSearch-Agent/issues)
 
 ---
 
@@ -478,6 +531,6 @@ See **[Testing Guide](docs/TESTING.md)** for complete testing documentation.
 
 Special thanks to:
 - [Playwright](https://playwright.dev/) for browser automation
-- [Playwright](https://playwright.dev/) for browser automation
 - [FastAPI](https://fastapi.tiangolo.com/) for the API framework
-- [LinkedIn](https://linkedin.com/) for providing job data
+- [Alpine.js](https://alpinejs.dev/) and [Tailwind CSS](https://tailwindcss.com/) for the web console
+- [Google ADK](https://google.github.io/adk-docs/) for the agent pipeline

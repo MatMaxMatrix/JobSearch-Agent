@@ -15,7 +15,8 @@ dependencies = [
     "uvicorn[standard]>=0.40.0",
     "pydantic>=2.12.5",
     # LLM / agent framework
-    "google-adk>=1.18.0",
+    # [extensions] pulls the LiteLlm wrapper the agents import (google.adk.models.lite_llm).
+    "google-adk[extensions]>=1.18.0",
     "litellm>=1.40.0",
     "langchain>=1.2.0",
     "langchain-azure-ai>=1.0.0",

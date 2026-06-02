@@ -79,13 +79,15 @@ async def verify_api_key(api_key: str = Depends(api_key_header)):
     return api_key
 
 
-# Add CORS middleware for React frontend
+# CORS. Set ALLOWED_ORIGIN to your site in production (e.g. https://app.example.com).
+# Browsers reject `allow_origins=["*"]` together with credentials, so only enable
+# credentials when a specific origin is configured. Auth uses the X-API-Key header,
+# not cookies, so the wildcard default needs no credentials.
+allowed_origin = os.getenv("ALLOWED_ORIGIN", "*")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        os.getenv("ALLOWED_ORIGIN", "*")  # Set specific domains in production
-    ],
-    allow_credentials=True,
+    allow_origins=[allowed_origin],
+    allow_credentials=allowed_origin != "*",
     allow_methods=["*"],
     allow_headers=["*"],
 )
