@@ -1,6 +1,7 @@
 # Core AI and Agent dependencies
-# [extensions] provides the LiteLlm wrapper the agents import.
-google-adk[extensions]>=1.18.0
+# [extensions] provides the LiteLlm wrapper the agents import. 2.x is required:
+# google-adk 1.x caps fastapi at <0.124 and conflicts with the FastAPI server pin.
+google-adk[extensions]>=2.0.0
 google-genai>=0.7.0
 litellm>=1.40.0
 
