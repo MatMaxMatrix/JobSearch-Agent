@@ -22,7 +22,7 @@ from jobsearch_agent.utils.job_database import JobDatabase
 dotenv.load_dotenv()
 
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
-DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-pro")
+DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-pro"
 DEFAULT_COUNTRIES = ["Netherlands", "Germany", "Italy"]
 DEFAULT_TOP_PER_COUNTRY = 5
 DEFAULT_JOBS_PER_COUNTRY = 25
@@ -48,8 +48,11 @@ def deepseek_chat(
     if not api_key:
         raise RuntimeError("DEEPSEEK_API_KEY is not set")
 
+    # Read the model per call so the model picked in the UI (POST /config) takes effect.
+    model = os.environ.get("DEEPSEEK_MODEL", DEFAULT_DEEPSEEK_MODEL)
+
     payload: Dict[str, Any] = {
-        "model": DEEPSEEK_MODEL,
+        "model": model,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
@@ -73,14 +76,14 @@ def deepseek_chat(
     )
     if resp.status_code != 200:
         raise RuntimeError(
-            f"DeepSeek HTTP {resp.status_code} for model={DEEPSEEK_MODEL!r}: "
+            f"DeepSeek HTTP {resp.status_code} for model={model!r}: "
             f"{resp.text[:500]}"
         )
     try:
         data = resp.json()
     except ValueError as e:
         raise RuntimeError(
-            f"DeepSeek returned non-JSON for model={DEEPSEEK_MODEL!r}: "
+            f"DeepSeek returned non-JSON for model={model!r}: "
             f"{resp.text[:500]}"
         ) from e
     try:
@@ -88,11 +91,11 @@ def deepseek_chat(
     except (KeyError, IndexError, TypeError) as e:
         raise RuntimeError(
             f"DeepSeek response missing 'choices[0].message.content' "
-            f"for model={DEEPSEEK_MODEL!r}: {json.dumps(data)[:500]}"
+            f"for model={model!r}: {json.dumps(data)[:500]}"
         ) from e
     if not content or not content.strip():
         raise RuntimeError(
-            f"DeepSeek returned empty content for model={DEEPSEEK_MODEL!r}. "
+            f"DeepSeek returned empty content for model={model!r}. "
             f"Full response: {json.dumps(data)[:500]}"
         )
     return content

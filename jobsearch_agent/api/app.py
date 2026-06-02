@@ -303,6 +303,63 @@ async def health():
     return {"status": "ok", "service": app.title, "version": app.version}
 
 
+# ---------------------------------------------------------------------------
+# Runtime configuration (model + provider keys editable from the web console).
+#
+# Only the allow-listed env vars below can be changed via the API, and secret
+# values are never returned. Changes apply to the running process only
+# (os.environ) and are lost on restart — the UI re-applies them on load.
+# ---------------------------------------------------------------------------
+CONFIGURABLE_ENV = {
+    # field name        : (ENV_VAR,            is_secret)
+    "deepseek_api_key":   ("DEEPSEEK_API_KEY",  True),
+    "deepseek_model":     ("DEEPSEEK_MODEL",    False),
+    "google_api_key":     ("GOOGLE_API_KEY",    True),
+    "tavily_api_key":     ("TAVILY_API_KEY",    True),
+}
+
+
+class ConfigUpdate(BaseModel):
+    """Partial runtime config; omit or leave blank to keep the current value."""
+    deepseek_api_key: Optional[str] = None
+    deepseek_model: Optional[str] = None
+    google_api_key: Optional[str] = None
+    tavily_api_key: Optional[str] = None
+
+
+def _config_status() -> Dict[str, Any]:
+    """Report which settings are configured. Secret values are never included."""
+    out: Dict[str, Any] = {}
+    for field, (env_var, is_secret) in CONFIGURABLE_ENV.items():
+        value = os.environ.get(env_var) or ""
+        entry: Dict[str, Any] = {"set": bool(value), "secret": is_secret}
+        if not is_secret:
+            entry["value"] = value
+        out[field] = entry
+    return out
+
+
+@app.get("/config")
+async def get_config():
+    """Return which provider keys/model are configured (no secret values)."""
+    return {"settings": _config_status()}
+
+
+@app.post("/config", dependencies=[Depends(verify_api_key)])
+async def update_config(update: ConfigUpdate):
+    """Set allow-listed provider keys/model for the running process."""
+    changed = []
+    for field, (env_var, _is_secret) in CONFIGURABLE_ENV.items():
+        value = getattr(update, field, None)
+        if value is None:
+            continue
+        value = value.strip()
+        if value:
+            os.environ[env_var] = value
+            changed.append(field)
+    return {"updated": changed, "settings": _config_status()}
+
+
 @app.post("/search", dependencies=[Depends(verify_api_key)])
 async def search_jobs(request: JobSearchRequest, background_tasks: BackgroundTasks):
     """

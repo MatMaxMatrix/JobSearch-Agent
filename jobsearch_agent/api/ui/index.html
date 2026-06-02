@@ -239,6 +239,69 @@
                 class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
             </div>
 
+            <!-- Model & provider keys -->
+            <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+              <div class="mb-2 flex items-center justify-between">
+                <h2 class="text-sm font-semibold">Model &amp; provider keys</h2>
+                <button @click="refreshConfig" class="text-xs text-indigo-300 hover:text-indigo-200">refresh</button>
+              </div>
+              <p class="mb-4 text-xs text-slate-400">
+                Applied to the running server. Saved in your browser and re-applied on load
+                (the server forgets them on restart). A green dot means the server has it set.
+              </p>
+
+              <label class="mb-3 block text-sm">
+                <span class="mb-1 flex items-center gap-2 text-slate-400">
+                  <span class="h-2 w-2 rounded-full" :class="config.status.deepseek_model && config.status.deepseek_model.set ? 'bg-emerald-400' : 'bg-slate-600'"></span>
+                  DeepSeek model <span class="text-slate-600">· CV match</span>
+                </span>
+                <input x-model="settings.deepseek_model" list="deepseek-models" placeholder="deepseek-v4-pro"
+                  class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+                <datalist id="deepseek-models">
+                  <option value="deepseek-v4-pro"></option>
+                  <option value="deepseek-chat"></option>
+                  <option value="deepseek-reasoner"></option>
+                </datalist>
+              </label>
+
+              <label class="mb-3 block text-sm">
+                <span class="mb-1 flex items-center gap-2 text-slate-400">
+                  <span class="h-2 w-2 rounded-full" :class="config.status.deepseek_api_key && config.status.deepseek_api_key.set ? 'bg-emerald-400' : 'bg-slate-600'"></span>
+                  DeepSeek API key
+                </span>
+                <input x-model="settings.deepseek_api_key" type="password"
+                  :placeholder="config.status.deepseek_api_key && config.status.deepseek_api_key.set ? '•••••• (set — leave blank to keep)' : 'sk-…'"
+                  class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+              </label>
+
+              <label class="mb-3 block text-sm">
+                <span class="mb-1 flex items-center gap-2 text-slate-400">
+                  <span class="h-2 w-2 rounded-full" :class="config.status.google_api_key && config.status.google_api_key.set ? 'bg-emerald-400' : 'bg-slate-600'"></span>
+                  Google API key <span class="text-slate-600">· AI docs</span>
+                </span>
+                <input x-model="settings.google_api_key" type="password"
+                  :placeholder="config.status.google_api_key && config.status.google_api_key.set ? '•••••• (set — leave blank to keep)' : 'AIza…'"
+                  class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+              </label>
+
+              <label class="mb-3 block text-sm">
+                <span class="mb-1 flex items-center gap-2 text-slate-400">
+                  <span class="h-2 w-2 rounded-full" :class="config.status.tavily_api_key && config.status.tavily_api_key.set ? 'bg-emerald-400' : 'bg-slate-600'"></span>
+                  Tavily API key <span class="text-slate-600">· web search</span>
+                </span>
+                <input x-model="settings.tavily_api_key" type="password"
+                  :placeholder="config.status.tavily_api_key && config.status.tavily_api_key.set ? '•••••• (set — leave blank to keep)' : 'tvly-…'"
+                  class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+              </label>
+
+              <button @click="saveSettings" :disabled="settings.busy || !apiKey"
+                class="mt-1 w-full rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium hover:bg-indigo-400 disabled:opacity-50">
+                <span x-show="!settings.busy">Save settings</span>
+                <span x-show="settings.busy">Saving…</span>
+              </button>
+              <p x-show="!apiKey" class="mt-2 text-xs text-amber-400">⚠ Set the server API key above first.</p>
+            </div>
+
             <!-- Stats -->
             <div class="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
               <div class="mb-3 flex items-center justify-between">
@@ -307,6 +370,14 @@
           stats: {},
           statLists: {},
           history: [],
+          config: { status: {} },
+          settings: {
+            deepseek_model: '',
+            deepseek_api_key: '',
+            google_api_key: '',
+            tavily_api_key: '',
+            busy: false,
+          },
           logs: [],
           busy: false,
           useWebsocket: true,
@@ -331,6 +402,7 @@
           },
 
           init() {
+            this.loadSettings();
             this.refreshHealth();
             this.refreshStats();
             this.refreshHistory();
@@ -338,6 +410,77 @@
           },
 
           saveKey() { localStorage.setItem('jsa_api_key', this.apiKey); },
+
+          loadSettings() {
+            try {
+              const stored = JSON.parse(localStorage.getItem('jsa_settings') || '{}');
+              for (const k of ['deepseek_model', 'deepseek_api_key', 'google_api_key', 'tavily_api_key']) {
+                if (stored[k]) this.settings[k] = stored[k];
+              }
+            } catch { /* ignore corrupt storage */ }
+            // Read server status, then re-apply stored values it doesn't have yet.
+            this.refreshConfig().then(() => this.applyStoredSettings());
+          },
+
+          persistSettings() {
+            localStorage.setItem('jsa_settings', JSON.stringify({
+              deepseek_model: this.settings.deepseek_model,
+              deepseek_api_key: this.settings.deepseek_api_key,
+              google_api_key: this.settings.google_api_key,
+              tavily_api_key: this.settings.tavily_api_key,
+            }));
+          },
+
+          settingsPayload() {
+            const p = {};
+            for (const k of ['deepseek_model', 'deepseek_api_key', 'google_api_key', 'tavily_api_key']) {
+              const v = (this.settings[k] || '').trim();
+              if (v) p[k] = v;
+            }
+            return p;
+          },
+
+          async refreshConfig() {
+            try {
+              const d = await this.fetchJson('/config');
+              this.config.status = d.settings || {};
+              // Reflect the server's current model if we don't have one locally.
+              const sm = this.config.status.deepseek_model;
+              if (!this.settings.deepseek_model && sm && sm.value) this.settings.deepseek_model = sm.value;
+            } catch (e) { this.log(`config: ${e.message}`, 'err'); }
+          },
+
+          async applyStoredSettings() {
+            // After a server restart it forgets keys; re-push what we have stored.
+            if (!this.apiKey) return;
+            const payload = this.settingsPayload();
+            const s = this.config.status;
+            const missingSecret = ['deepseek_api_key', 'google_api_key', 'tavily_api_key']
+              .some((k) => payload[k] && !(s[k] && s[k].set));
+            const modelDiff = payload.deepseek_model
+              && payload.deepseek_model !== (s.deepseek_model && s.deepseek_model.value);
+            if (missingSecret || modelDiff) {
+              try { await this.postConfig(payload, true); } catch { /* surfaced on manual save */ }
+            }
+          },
+
+          async postConfig(payload, quiet = false) {
+            const d = await this.fetchJson('/config', { method: 'POST', body: JSON.stringify(payload) });
+            this.config.status = d.settings || {};
+            if (!quiet) this.log(`settings saved: ${(d.updated || []).join(', ') || 'no changes'}`, 'ok');
+            return d;
+          },
+
+          async saveSettings() {
+            if (!this.apiKey) { this.log('set the server API key first', 'err'); return; }
+            this.settings.busy = true;
+            try {
+              await this.postConfig(this.settingsPayload());
+              this.persistSettings();
+            } catch (e) {
+              this.log(`settings failed: ${e.message}`, 'err');
+            } finally { this.settings.busy = false; }
+          },
 
           log(msg, kind = 'info') {
             this.logs.push({ id: Date.now() + Math.random(), msg, kind, t: new Date().toLocaleTimeString() + '  ' });
