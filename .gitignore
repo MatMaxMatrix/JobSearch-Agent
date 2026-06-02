@@ -18,6 +18,9 @@ key.json
 *.swp
 *.swo
 
+# Claude Code machine-local settings
+.claude/settings.local.json
+
 # Test / lint caches
 .pytest_cache/
 .ruff_cache/
@@ -27,7 +30,7 @@ key.json
 jobs/*.db
 jobs/job_postings_20*.json
 jobs/job_bulk_text_*.txt
-output/job_search_*.json
+output/job_search_*
 output/search_history.json
 output/linkedin/
 output/match/

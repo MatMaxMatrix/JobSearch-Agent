@@ -1,0 +1,28 @@
+services:
+  jobsearch:
+    build: .
+    image: jobsearch-agent:dev
+    container_name: jobsearch-agent
+    ports:
+      # Bind to loopback only — reachable from this laptop, not the network.
+      - "127.0.0.1:8080:8080"
+    env_file:
+      - .env
+    environment:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    volumes:
+      # Persist generated artifacts across container restarts.
+      - ./output:/app/output
+      - ./jobs:/app/jobs
+      # Reuse a pre-authenticated LinkedIn session (data/linkedin_state.json) to
+      # skip the in-container login/captcha; refreshed sessions persist back here.
+      - ./data:/app/data
+      # Live-edit the web console without rebuilding the image (just refresh the browser).
+      - ./jobsearch_agent/api/ui:/app/jobsearch_agent/api/ui
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health', timeout=2).status == 200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

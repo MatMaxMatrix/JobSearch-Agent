@@ -79,13 +79,15 @@ async def verify_api_key(api_key: str = Depends(api_key_header)):
     return api_key
 
 
-# Add CORS middleware for React frontend
+# CORS. Set ALLOWED_ORIGIN to your site in production (e.g. https://app.example.com).
+# Browsers reject `allow_origins=["*"]` together with credentials, so only enable
+# credentials when a specific origin is configured. Auth uses the X-API-Key header,
+# not cookies, so the wildcard default needs no credentials.
+allowed_origin = os.getenv("ALLOWED_ORIGIN", "*")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        os.getenv("ALLOWED_ORIGIN", "*")  # Set specific domains in production
-    ],
-    allow_credentials=True,
+    allow_origins=[allowed_origin],
+    allow_credentials=allowed_origin != "*",
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -94,6 +96,11 @@ app.add_middleware(
 output_dir = os.path.join(os.getcwd(), "output")
 ensure_dir_exists(output_dir)
 app.mount("/output", StaticFiles(directory=output_dir), name="output")
+
+# Bundled web console (single-page HTML + Tailwind CDN + Alpine.js, no build step).
+UI_DIR = Path(__file__).resolve().parent / "ui"
+if UI_DIR.is_dir():
+    app.mount("/ui", StaticFiles(directory=UI_DIR), name="ui")
 
 
 # Define data models
@@ -281,9 +288,76 @@ def update_search_status(search_id: str, status: str, job_count: int = None):
 
 
 # Define API endpoints
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def root():
-    return {"message": "JobSearch API is running. Access /docs for API documentation."}
+    """Serve the bundled web console; fall back to a JSON message if the UI is missing."""
+    index = UI_DIR / "index.html"
+    if index.is_file():
+        return FileResponse(index)
+    return {"message": "JobSearch API is running. Visit /docs for the OpenAPI schema."}
+
+
+@app.get("/health")
+async def health():
+    """Lightweight liveness probe used by the UI and container orchestrators."""
+    return {"status": "ok", "service": app.title, "version": app.version}
+
+
+# ---------------------------------------------------------------------------
+# Runtime configuration (model + provider keys editable from the web console).
+#
+# Only the allow-listed env vars below can be changed via the API, and secret
+# values are never returned. Changes apply to the running process only
+# (os.environ) and are lost on restart — the UI re-applies them on load.
+# ---------------------------------------------------------------------------
+CONFIGURABLE_ENV = {
+    # field name        : (ENV_VAR,            is_secret)
+    "deepseek_api_key":   ("DEEPSEEK_API_KEY",  True),
+    "deepseek_model":     ("DEEPSEEK_MODEL",    False),
+    "google_api_key":     ("GOOGLE_API_KEY",    True),
+    "tavily_api_key":     ("TAVILY_API_KEY",    True),
+}
+
+
+class ConfigUpdate(BaseModel):
+    """Partial runtime config; omit or leave blank to keep the current value."""
+    deepseek_api_key: Optional[str] = None
+    deepseek_model: Optional[str] = None
+    google_api_key: Optional[str] = None
+    tavily_api_key: Optional[str] = None
+
+
+def _config_status() -> Dict[str, Any]:
+    """Report which settings are configured. Secret values are never included."""
+    out: Dict[str, Any] = {}
+    for field, (env_var, is_secret) in CONFIGURABLE_ENV.items():
+        value = os.environ.get(env_var) or ""
+        entry: Dict[str, Any] = {"set": bool(value), "secret": is_secret}
+        if not is_secret:
+            entry["value"] = value
+        out[field] = entry
+    return out
+
+
+@app.get("/config")
+async def get_config():
+    """Return which provider keys/model are configured (no secret values)."""
+    return {"settings": _config_status()}
+
+
+@app.post("/config", dependencies=[Depends(verify_api_key)])
+async def update_config(update: ConfigUpdate):
+    """Set allow-listed provider keys/model for the running process."""
+    changed = []
+    for field, (env_var, _is_secret) in CONFIGURABLE_ENV.items():
+        value = getattr(update, field, None)
+        if value is None:
+            continue
+        value = value.strip()
+        if value:
+            os.environ[env_var] = value
+            changed.append(field)
+    return {"updated": changed, "settings": _config_status()}
 
 
 @app.post("/search", dependencies=[Depends(verify_api_key)])

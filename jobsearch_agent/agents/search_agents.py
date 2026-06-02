@@ -13,6 +13,7 @@ from google.adk.tools.langchain_tool import LangchainTool
 from langchain_community.tools import TavilySearchResults
 from google.adk.tools import google_search
 import json
+import os
 import re
 
 from jobsearch_agent.utils.file_utils import load_config
@@ -127,15 +128,24 @@ multi_site_search_agent = LlmAgent(
 )
 
 # --- Tavily Search Agent ---
-# Instantiate the LangChain tool
-tavily_tool_instance = TavilySearchResults(
-    max_results=10,
-    search_depth="advanced",
-    include_answer=True,
-)
-
-# Wrap it with LangchainTool for ADK
-adk_tavily_tool = LangchainTool(tool=tavily_tool_instance)
+# Build the LangChain Tavily tool only when a key is configured. TavilySearchResults
+# validates TAVILY_API_KEY at construction, so instantiating it at import time would
+# break environments without the key (e.g. CI smoke-test imports). When the key is
+# absent the agent is created with no Tavily tool; set TAVILY_API_KEY to enable it.
+_tavily_api_key = os.environ.get("TAVILY_API_KEY")
+if _tavily_api_key:
+    tavily_tool_instance = TavilySearchResults(
+        max_results=10,
+        search_depth="advanced",
+        include_answer=True,
+        tavily_api_key=_tavily_api_key,
+    )
+    adk_tavily_tool = LangchainTool(tool=tavily_tool_instance)
+    _tavily_tools = [adk_tavily_tool]
+else:
+    tavily_tool_instance = None
+    adk_tavily_tool = None
+    _tavily_tools = []
 
 # Define the ADK agent for job searching
 tavily_search_agent = LlmAgent(
@@ -173,7 +183,7 @@ tavily_search_agent = LlmAgent(
         "15. job_url\n"
         "16. source_site\n\n"
     ),
-    tools=[adk_tavily_tool],
+    tools=_tavily_tools,
 )
 
 

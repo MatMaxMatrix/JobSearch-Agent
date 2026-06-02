@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & smoke-test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Smoke-test imports
+        run: |
+          python -c "import jobsearch_agent; print('version', jobsearch_agent.__version__)"
+          python -c "from jobsearch_agent.api.app import app; print('app:', app.title, app.version)"
+          python -c "from jobsearch_agent.cli import main"
+          python -c "from jobsearch_agent.api.server import main"
+          python -c "import jobsearch_agent.scraper.search.linkedin_scraper.config"
+          python -c "import jobsearch_agent.scraper.buggmenot.bugmenot_scraper"
+
+      - name: Lint (syntax & undefined names only)
+        run: |
+          ruff check --select E9,F63,F7,F82 .
+
+      - name: Verify package builds
+        run: |
+          pip install build
+          python -m build --sdist --wheel
